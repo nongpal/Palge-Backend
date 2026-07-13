@@ -15,6 +15,13 @@ type application struct {
 }
 
 func main() {
+	cfg := config{port: 4000}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	logger.Info("Bootstrap application")
+
+	app := application{
+		config: cfg,
+		logger: logger,
+	}
+
+	app.logger.Info("Bootstrap application")
 }
