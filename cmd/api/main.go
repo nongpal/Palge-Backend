@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
 type config struct {
 	port int
+	env  string
 }
 
 type application struct {
@@ -15,13 +18,42 @@ type application struct {
 }
 
 func main() {
-	cfg := config{port: 4000}
+	cfg := config{
+		port: 4000,
+		env:  "development",
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	app := application{
+	app := &application{
 		config: cfg,
 		logger: logger,
 	}
 
-	app.logger.Info("Bootstrap application")
+	err := app.run()
+	if err != nil {
+		app.logger.Error(err.Error())
+		os.Exit(1)
+	}
+}
+
+func (app *application) run() error {
+	mux := app.routes()
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", app.config.port),
+		Handler: mux,
+	}
+
+	app.logger.Info(
+		"starting server",
+		"addr", srv.Addr,
+		"env", app.config.env,
+	)
+	return srv.ListenAndServe()
+}
+
+func (app *application) routes() http.Handler {
+	mux := http.NewServeMux()
+
+	return mux
 }
