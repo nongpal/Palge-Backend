@@ -8,13 +8,15 @@ import (
 	"time"
 )
 
+const version = "0.1.0"
+
 type config struct {
 	port int
 	env  string
 }
 
 type application struct {
-	config config
+	cfg    config
 	logger *slog.Logger
 }
 
@@ -27,7 +29,7 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	app := &application{
-		config: cfg,
+		cfg:    cfg,
 		logger: logger,
 	}
 
@@ -39,9 +41,8 @@ func main() {
 }
 
 func (app *application) run() error {
-	//mux := app.routes()
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", app.config.port),
+		Addr:    fmt.Sprintf(":%d", app.cfg.port),
 		Handler: app.routes(),
 
 		ReadTimeout:       10 * time.Second,
@@ -53,13 +54,7 @@ func (app *application) run() error {
 	app.logger.Info(
 		"starting server",
 		"addr", srv.Addr,
-		"env", app.config.env,
+		"env", app.cfg.env,
 	)
 	return srv.ListenAndServe()
-}
-
-func (app *application) routes() http.Handler {
-	mux := http.NewServeMux()
-
-	return mux
 }
