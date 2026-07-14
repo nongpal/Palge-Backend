@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 type config struct {
@@ -38,10 +39,15 @@ func main() {
 }
 
 func (app *application) run() error {
-	mux := app.routes()
+	//mux := app.routes()
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", app.config.port),
-		Handler: mux,
+		Handler: app.routes(),
+
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       time.Minute,
 	}
 
 	app.logger.Info(
