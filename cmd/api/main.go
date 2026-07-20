@@ -3,6 +3,8 @@ package main
 import (
 	"log/slog"
 	"os"
+
+	"github.com/nongpal/Palge-Backend/internal/data"
 )
 
 const version = "0.1.0"
@@ -13,8 +15,10 @@ type config struct {
 }
 
 type application struct {
-	cfg    config
-	logger *slog.Logger
+	cfg      config
+	logger   *slog.Logger
+	accounts []*data.Account
+	nextID   int64
 }
 
 func main() {
@@ -26,8 +30,10 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	app := &application{
-		cfg:    cfg,
-		logger: logger,
+		cfg:      cfg,
+		logger:   logger,
+		accounts: make([]*data.Account, 0),
+		nextID:   1,
 	}
 
 	err := app.serve()
