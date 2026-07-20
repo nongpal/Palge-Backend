@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
-	"time"
 )
 
 const version = "0.1.0"
@@ -33,28 +30,9 @@ func main() {
 		logger: logger,
 	}
 
-	err := app.run()
+	err := app.serve()
 	if err != nil {
 		app.logger.Error(err.Error())
 		os.Exit(1)
 	}
-}
-
-func (app *application) run() error {
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", app.cfg.port),
-		Handler: app.routes(),
-
-		ReadTimeout:       10 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       time.Minute,
-	}
-
-	app.logger.Info(
-		"starting server",
-		"addr", srv.Addr,
-		"env", app.cfg.env,
-	)
-	return srv.ListenAndServe()
 }
