@@ -8,6 +8,7 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("GET /v1/healthcheck", app.healthcheckHandler)
 	mux.HandleFunc("GET /v1/slow", app.slowHandler)
 	mux.HandleFunc("POST /v1/accounts", app.createAccountHandler)
+	mux.HandleFunc("GET /v1/accounts", app.listAccountHandler)
 
 	return mux
 }

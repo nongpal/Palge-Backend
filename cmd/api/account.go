@@ -35,3 +35,13 @@ func (app *application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 		app.logger.Error(err.Error())
 	}
 }
+
+func (app *application) listAccountHandler(w http.ResponseWriter, r *http.Request) {
+	err := app.writeJSON(w, http.StatusOK, envelope{
+		"account": app.accounts,
+	}, nil)
+
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
+}
