@@ -49,7 +49,7 @@ func (app *application) listAccountHandler(w http.ResponseWriter, r *http.Reques
 func (app *application) showAccountHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		// TODO: is this good enough for error handling?
+		// BUG: is this good enough for error handling?
 		app.logger.Error(err.Error())
 		return
 	}
@@ -59,6 +59,34 @@ func (app *application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 		app.notFoundResponse(w, r)
 		return
 	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
+}
+
+func (app *application) depositHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Amount int64 `json:"amount"`
+	}
+
+	id, err := app.readIDParam(r)
+	if err != nil {
+		// BUG: is this good enough for error handling?
+		app.logger.Error(err.Error())
+		return
+	}
+
+	account, err := app.GetAccountByID(id)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	err = app.readJSON(w, r, &input)
+	// TODO: not yet handled!
+	account.Balance += input.Amount
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
