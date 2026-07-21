@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -90,4 +92,21 @@ func (app *application) readString(qs url.Values, key string, defaultValue strin
 	}
 
 	return s
+}
+
+func (app *application) readInt(qs url.Values, key string, defaultValue int) int {
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		// NOTE: use validator instead of slog.Error(...)
+		slog.Error(err.Error())
+		return defaultValue
+	}
+
+	return i
 }
