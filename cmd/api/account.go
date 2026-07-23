@@ -93,3 +93,31 @@ func (app *application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		app.logger.Error(err.Error())
 	}
 }
+
+func (app *application) withdrawHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Amount int64 `json:"amount"`
+	}
+
+	id, err := app.readIDParam(r)
+	if err != nil {
+		// BUG: is this good enough for error handling?
+		app.logger.Error(err.Error())
+		return
+	}
+
+	account, err := app.GetAccountByID(id)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	err = app.readJSON(w, r, &input)
+	// TODO: not yet handled!
+	account.Balance -= input.Amount
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
+}
