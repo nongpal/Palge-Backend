@@ -121,3 +121,41 @@ func (app *application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		app.logger.Error(err.Error())
 	}
 }
+
+func (app *application) transferHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		From   int64 `json:"from"`
+		To     int64 `json:"to"`
+		Amount int64 `json:"amount"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	sender, err := app.GetAccountByID(input.From)
+	if err != nil {
+		app.notFoundResponse(w, r)
+	}
+
+	receiver, err := app.GetAccountByID(input.To)
+	if err != nil {
+		app.notFoundResponse(w, r)
+	}
+
+	sender.Balance -= input.Amount
+	receiver.Balance += input.Amount
+
+	err = app.writeJSON(w, http.StatusOK, envelope{
+		"transfer": map[string]*data.Account{
+			"from": sender,
+			"to":   receiver,
+		},
+	}, nil)
+
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
+}

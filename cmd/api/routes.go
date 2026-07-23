@@ -12,6 +12,7 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("GET /v1/accounts/{id}", app.showAccountHandler)
 	mux.HandleFunc("POST /v1/accounts/{id}/deposit", app.depositHandler)
 	mux.HandleFunc("POST /v1/accounts/{id}/withdraw", app.withdrawHandler)
+	mux.HandleFunc("POST /v1/transfers", app.transferHandler)
 
 	return mux
 }
