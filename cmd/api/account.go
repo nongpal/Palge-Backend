@@ -136,6 +136,16 @@ func (app *application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if input.Amount <= 0 {
+		app.badRequestResponse(w, r, errors.New("withdraw amount must be greater than 0"))
+		return
+	}
+
+	if account.Balance < input.Amount {
+		app.badRequestResponse(w, r, errors.New("insufficient balance to withdraw"))
+		return
+	}
+
 	account.Balance -= input.Amount
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
