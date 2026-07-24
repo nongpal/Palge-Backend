@@ -49,8 +49,7 @@ func (app *application) listAccountHandler(w http.ResponseWriter, r *http.Reques
 func (app *application) showAccountHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		// BUG: is this good enough for error handling?
-		app.logger.Error(err.Error())
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
