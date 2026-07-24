@@ -1,44 +1,20 @@
 package main
 
 import (
-	"log/slog"
-	"os"
+	"log"
 
-	"github.com/nongpal/Palge-Backend/internal/data"
+	"github.com/nongpal/Palge-Backend/internal/api"
 )
 
-const version = "0.1.0"
-
-type config struct {
-	port int
-	env  string
-}
-
-type application struct {
-	cfg      config
-	logger   *slog.Logger
-	accounts []*data.Account
-	nextID   int64
-}
-
 func main() {
-	cfg := config{
-		port: 4000,
-		env:  "development",
+	cfg := api.Config{
+		Port: 4000,
+		Env:  "development",
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	app := api.NewApplication(cfg)
 
-	app := &application{
-		cfg:      cfg,
-		logger:   logger,
-		accounts: make([]*data.Account, 0),
-		nextID:   1,
-	}
-
-	err := app.serve()
-	if err != nil {
-		app.logger.Error(err.Error())
-		os.Exit(1)
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
