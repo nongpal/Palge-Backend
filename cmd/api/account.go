@@ -170,7 +170,7 @@ func (app *application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, errors.New("deposit amount must be greater than 0"))
+		app.badRequestResponse(w, r, errors.New("transfer amount must be greater than 0"))
 		return
 	}
 
