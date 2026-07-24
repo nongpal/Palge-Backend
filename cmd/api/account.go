@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
 )
@@ -15,6 +17,11 @@ func (app *application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if strings.TrimSpace(input.Owner) == "" {
+		app.badRequestResponse(w, r, errors.New("owner must not be empty"))
 		return
 	}
 
