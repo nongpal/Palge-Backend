@@ -96,7 +96,16 @@ func (app *application) depositHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.readJSON(w, r, &input)
-	// TODO: not yet handled!
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Amount <= 0 {
+		app.badRequestResponse(w, r, errors.New("deposit amount must be greater than 0"))
+		return
+	}
+
 	account.Balance += input.Amount
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
