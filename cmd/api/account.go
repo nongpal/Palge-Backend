@@ -84,8 +84,7 @@ func (app *application) depositHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		// BUG: is this good enough for error handling?
-		app.logger.Error(err.Error())
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
@@ -121,8 +120,7 @@ func (app *application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		// BUG: is this good enough for error handling?
-		app.logger.Error(err.Error())
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
@@ -133,7 +131,11 @@ func (app *application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	err = app.readJSON(w, r, &input)
-	// TODO: not yet handled!
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
 	account.Balance -= input.Amount
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
@@ -158,11 +160,23 @@ func (app *application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	sender, err := app.GetAccountByID(input.From)
 	if err != nil {
 		app.notFoundResponse(w, r)
+		return
 	}
 
 	receiver, err := app.GetAccountByID(input.To)
 	if err != nil {
 		app.notFoundResponse(w, r)
+		return
+	}
+
+	if input.Amount <= 0 {
+		app.badRequestResponse(w, r, errors.New("deposit amount must be greater than 0"))
+		return
+	}
+
+	if sender.Balance < input.Amount {
+		app.badRequestResponse(w, r, errors.New("insufficient balance to transfer"))
+		return
 	}
 
 	sender.Balance -= input.Amount
