@@ -25,6 +25,11 @@ func (app *application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if input.InitialBalance < 0 {
+		app.badRequestResponse(w, r, errors.New("initial balance must not negative"))
+		return
+	}
+
 	account := &data.Account{
 		ID:      app.nextID,
 		Owner:   input.Owner,
