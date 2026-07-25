@@ -1,11 +1,10 @@
 package api
 
 import (
-	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
+	"github.com/nongpal/Palge-Backend/internal/validator"
 )
 
 func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,20 +19,19 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if strings.TrimSpace(input.Owner) == "" {
-		app.badRequestResponse(w, r, errors.New("owner must not be empty"))
-		return
-	}
-
-	if input.InitialBalance < 0 {
-		app.badRequestResponse(w, r, errors.New("initial balance must not negative"))
-		return
-	}
-
 	account := &data.Account{
 		ID:      app.nextID,
 		Owner:   input.Owner,
 		Balance: input.InitialBalance,
+	}
+
+	v := validator.New()
+
+	data.ValidateAccount(v, account)
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
 	}
 
 	app.accounts = append(app.accounts, account)
@@ -100,8 +98,12 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, errors.New("deposit amount must be greater than 0"))
+	v := validator.New()
+
+	data.ValidateAmount(v, input.Amount)
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -137,12 +139,12 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, errors.New("withdraw amount must be greater than 0"))
+		app.badRequestResponse(w, r, data.ErrInvalidAmount)
 		return
 	}
 
 	if account.Balance < input.Amount {
-		app.badRequestResponse(w, r, errors.New("insufficient balance to withdraw"))
+		app.badRequestResponse(w, r, data.ErrInsufficientBalance)
 		return
 	}
 
@@ -180,12 +182,12 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, errors.New("transfer amount must be greater than 0"))
+		app.badRequestResponse(w, r, data.ErrInvalidAmount)
 		return
 	}
 
 	if sender.Balance < input.Amount {
-		app.badRequestResponse(w, r, errors.New("insufficient balance to transfer"))
+		app.badRequestResponse(w, r, data.ErrInsufficientBalance)
 		return
 	}
 
