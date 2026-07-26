@@ -7,12 +7,15 @@ import (
 )
 
 func main() {
-	cfg := api.Config{
-		Port: 4000,
-		Env:  "development",
+	var cfg api.Config
+	api.NewConfig(&cfg)
+
+	app, err := api.NewApplication(cfg)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	app := api.NewApplication(cfg)
+	defer app.Close()
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

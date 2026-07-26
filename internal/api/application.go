@@ -1,6 +1,8 @@
 package api
 
 import (
+	"database/sql"
+	"flag"
 	"log/slog"
 	"os"
 
@@ -12,22 +14,46 @@ const version = "0.1.0"
 type Config struct {
 	Port int
 	Env  string
+	db   struct {
+		dsn string
+	}
 }
 
 type Application struct {
-	cfg      Config
-	logger   *slog.Logger
+	cfg    Config
+	logger *slog.Logger
+	db     *sql.DB
+
+	// INFO: in memory account state will be remove!
 	accounts []*data.Account
 	nextID   int64
 }
 
-func NewApplication(cfg Config) *Application {
+func NewConfig(cfg *Config) {
+	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
+	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:postgres@localhost:5432/palge?sslmode=disable", "PostgreSQL DSN")
+	flag.Parse()
+}
+
+func NewApplication(cfg Config) (*Application, error) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	return &Application{
+	db, err := openDB(cfg.db.dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	app := &Application{
 		cfg:      cfg,
 		logger:   logger,
+		db:       db,
 		accounts: make([]*data.Account, 0),
 		nextID:   1,
 	}
+	return app, nil
+}
+
+func (app *Application) Close() error {
+	return app.db.Close()
 }
