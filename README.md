@@ -16,13 +16,12 @@ The goal of this project is to build a banking backend incrementally while apply
 - Structured logging
 - HTTP timeouts
 - Graceful shutdown
-- In-memory banking API
+- PostgreSQL banking API
 
 ---
 
 ## Planned Features
 
-- PostgreSQL
 - Authentication (JWT)
 - Background Worker
 - Redis
@@ -36,8 +35,8 @@ The goal of this project is to build a banking backend incrementally while apply
 ## Roadmap
 
 - [x] v0.1.0 Foundation
-- [ ] v0.2.0 Core Banking API (on-going)
-- [ ] v0.3.0 PostgreSQL Persistence
+- [x] v0.2.0 Core Banking API
+- [ ] v0.3.0 PostgreSQL Persistence (on-going)
 - [ ] v0.4.0 Authentication
 - [ ] v0.5.0 Production Readiness
 - [ ] v0.6.0 Performance
