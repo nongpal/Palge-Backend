@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nongpal/Palge-Backend/internal/validator"
+	"github.com/ydb-platform/ydb-go-sdk/v3/query"
 )
 
 type Account struct {
@@ -128,6 +129,33 @@ func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrAccountNotFound
 		}
+		return nil, err
+	}
+
+	return account, nil
+}
+
+func (a *AccountModel) Withdraw(id int64, amount int64) (*Account, error) {
+	query := `
+	UPDATE accounts
+	SET balance = balance - $1
+	WHERE id = $2
+	RETURNING id, owner, balance
+	`
+
+	account := &Account{}
+
+	err := a.DB.QueryRow(query, amount, id).Scan(
+		&account.ID,
+		&account.Owner,
+		&account.Balance,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+
 		return nil, err
 	}
 
