@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"flag"
 	"log/slog"
 	"os"
@@ -22,7 +21,7 @@ type Config struct {
 type Application struct {
 	cfg    Config
 	logger *slog.Logger
-	db     *sql.DB
+	models data.Models
 
 	// INFO: in memory account state will be remove!
 	accounts []*data.Account
@@ -47,7 +46,7 @@ func NewApplication(cfg Config) (*Application, error) {
 	app := &Application{
 		cfg:      cfg,
 		logger:   logger,
-		db:       db,
+		models:   data.NewModels(db),
 		accounts: make([]*data.Account, 0),
 		nextID:   1,
 	}
@@ -55,5 +54,5 @@ func NewApplication(cfg Config) (*Application, error) {
 }
 
 func (app *Application) Close() error {
-	return app.db.Close()
+	return app.models.Accounts.DB.Close()
 }
