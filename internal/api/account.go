@@ -52,8 +52,11 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *Application) listAccountHandler(w http.ResponseWriter, r *http.Request) {
-	err := app.writeJSON(w, http.StatusOK, envelope{
-		"account": app.accounts,
+	accounts, err := app.models.Accounts.GetAll()
+	// WARN: not yet handled err returned from GetAll
+
+	err = app.writeJSON(w, http.StatusOK, envelope{
+		"account": accounts,
 	}, nil)
 
 	if err != nil {
