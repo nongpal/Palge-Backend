@@ -70,3 +70,40 @@ func (a *AccountModel) Get(id int64) (*Account, error) {
 
 	return &account, nil
 }
+
+func (a *AccountModel) GetAll() ([]*Account, error) {
+	query := `
+	SELECT id, owner, balance
+	FROM accounts
+	ORDER BY id ASC
+	`
+
+	rows, err := a.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var accounts []*Account
+
+	for rows.Next() {
+		var account Account
+
+		err := rows.Scan(
+			&account.ID, &account.Owner, &account.Balance,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		accounts = append(accounts, &account)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
+}
