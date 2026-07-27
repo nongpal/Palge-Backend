@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -67,9 +68,14 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	account, err := app.GetAccountByID(id)
+	account, err := app.models.Accounts.Get(id)
 	if err != nil {
-		app.notFoundResponse(w, r)
+		switch {
+		case errors.Is(err, data.ErrAccountNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
