@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -34,12 +35,15 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	app.accounts = append(app.accounts, account)
-	app.nextID++
+	if err = app.models.Accounts.Insert(account); err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{
-		"account": account,
-	}, nil)
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/accounts/%d", account.ID))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"account": account}, headers)
 
 	if err != nil {
 		app.logger.Error(err.Error())
