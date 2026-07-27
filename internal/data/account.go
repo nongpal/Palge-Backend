@@ -107,3 +107,29 @@ func (a *AccountModel) GetAll() ([]*Account, error) {
 
 	return accounts, nil
 }
+
+func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
+	query := `
+	UPDATE accounts
+	SET balance = balance + $1
+	WHERE id = $2
+	RETURNING id, owner, balance
+	`
+
+	account := &Account{}
+
+	err := a.DB.QueryRow(query, amount, id).Scan(
+		&account.ID,
+		&account.Owner,
+		&account.Balance,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+		return nil, err
+	}
+
+	return account, nil
+}
