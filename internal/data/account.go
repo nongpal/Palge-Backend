@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 
 	"github.com/nongpal/Palge-Backend/internal/validator"
@@ -38,4 +39,34 @@ func (a *AccountModel) Insert(account *Account) error {
 	`
 
 	return a.DB.QueryRow(query, account.Owner, account.Balance).Scan(&account.ID)
+}
+
+func (a *AccountModel) Get(id int64) (*Account, error) {
+	if id < 1 {
+		return nil, ErrAccountNotFound
+	}
+	query := `
+		SELECT id, owner, balance
+		FROM accounts
+		WHERE id = $1
+	`
+
+	var account Account
+
+	err := a.DB.QueryRow(query, id).Scan(
+		&account.ID,
+		&account.Owner,
+		&account.Balance,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrAccountNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &account, nil
 }
