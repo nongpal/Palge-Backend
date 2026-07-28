@@ -99,12 +99,6 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := app.GetAccountByID(id)
-	if err != nil {
-		app.notFoundResponse(w, r)
-		return
-	}
-
 	err = app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
@@ -112,7 +106,6 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
-
 	data.ValidateAmount(v, input.Amount)
 
 	if !v.Valid() {
@@ -120,7 +113,16 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account.Balance += input.Amount
+	account, err := app.models.Accounts.Deposit(id, input.Amount)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrAccountNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
