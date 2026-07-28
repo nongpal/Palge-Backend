@@ -188,6 +188,11 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if input.From == input.To {
+		app.errorResponse(w, r, http.StatusUnprocessableEntity, data.ErrSameAccountTransfer.Error())
+		return
+	}
+
 	sender, err := app.models.Accounts.Get(input.From)
 	if err != nil {
 		switch {
@@ -205,6 +210,15 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	sender, receiver, err := app.models.Accounts.Transfer(input.From, input.To, input.Amount)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrAccountNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{
 		"transfer": map[string]*data.Account{
