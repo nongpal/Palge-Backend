@@ -184,20 +184,19 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sender, err := app.GetAccountByID(input.From)
-	if err != nil {
-		app.notFoundResponse(w, r)
-		return
-	}
-
-	receiver, err := app.GetAccountByID(input.To)
-	if err != nil {
-		app.notFoundResponse(w, r)
-		return
-	}
-
 	if input.Amount <= 0 {
 		app.badRequestResponse(w, r, data.ErrInvalidAmount)
+		return
+	}
+
+	sender, err := app.models.Accounts.Get(input.From)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrAccountNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -206,8 +205,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sender.Balance -= input.Amount
-	receiver.Balance += input.Amount
+	sender, receiver, err := app.models.Accounts.Transfer(input.From, input.To, input.Amount)
 
 	err = app.writeJSON(w, http.StatusOK, envelope{
 		"transfer": map[string]*data.Account{
