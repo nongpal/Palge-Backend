@@ -141,12 +141,6 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	account, err := app.GetAccountByID(id)
-	if err != nil {
-		app.notFoundResponse(w, r)
-		return
-	}
-
 	err = app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
@@ -158,12 +152,18 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if account.Balance < input.Amount {
-		app.badRequestResponse(w, r, data.ErrInsufficientBalance)
+	account, err := app.models.Accounts.Withdraw(id, input.Amount)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrAccountNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrInsufficientBalance):
+			app.badRequestResponse(w, r, err)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
-
-	account.Balance -= input.Amount
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
