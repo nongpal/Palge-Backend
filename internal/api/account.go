@@ -22,7 +22,6 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	account := &data.Account{
-		ID:      app.nextID,
 		Owner:   input.Owner,
 		Balance: input.InitialBalance,
 	}

@@ -10,8 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/nongpal/Palge-Backend/internal/data"
 )
 
 type envelope map[string]any
@@ -122,14 +120,4 @@ func (app *Application) readIDParam(r *http.Request) (int64, error) {
 	}
 
 	return id, nil
-}
-
-func (app *Application) GetAccountByID(id int64) (*data.Account, error) {
-	for _, account := range app.accounts {
-		if account.ID == id {
-			return account, nil
-		}
-	}
-
-	return nil, errors.New("account not found")
 }

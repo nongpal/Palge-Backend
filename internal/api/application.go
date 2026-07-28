@@ -22,10 +22,6 @@ type Application struct {
 	cfg    Config
 	logger *slog.Logger
 	models data.Models
-
-	// INFO: in memory account state will be remove!
-	accounts []*data.Account
-	nextID   int64
 }
 
 func NewConfig(cfg *Config) {
@@ -44,11 +40,9 @@ func NewApplication(cfg Config) (*Application, error) {
 	}
 
 	app := &Application{
-		cfg:      cfg,
-		logger:   logger,
-		models:   data.NewModels(db),
-		accounts: make([]*data.Account, 0),
-		nextID:   1,
+		cfg:    cfg,
+		logger: logger,
+		models: data.NewModels(db),
 	}
 	return app, nil
 }
