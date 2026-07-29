@@ -178,85 +178,84 @@ func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*A
 	return &account, nil
 }
 
-func (m *AccountModel) Transfer(from, to, amount int64) (*Account, *Account, error) {
-	var sender, receiver Account
-	tx, err := m.DB.BeginTx(context.Background(), nil)
-	if err != nil {
-		return nil, nil, err
+func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*Account, *Account, error) {
+	if from == to {
+		return nil, nil, ErrSameAccountTransfer
 	}
-
-	defer tx.Rollback()
-
-	getAccount := func(id int64) (*Account, error) {
-		query := `
-		SELECT id, owner, balance 
-		FROM accounts 
-		WHERE id = $1 
-		FOR UPDATE
-		`
-
-		account := &Account{}
-		err := tx.QueryRow(query,
-			id).Scan(&account.ID, &account.Owner, &account.Balance)
-
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, ErrAccountNotFound
-			}
-			return nil, err
+	var sender, receiver Account
+	err := m.execInTx(ctx, func(tx *sql.Tx) error {
+		firstID, secondID := from, to
+		if from > to {
+			firstID, secondID = to, from
 		}
 
-		return account, nil
-	}
+		queryLock := `
+		SELECT id, owner, balance 
+		FROM accounts 
+		WHERE id = ($1, $2)
+		ORDER BY id
+		FOR UPDATE
+		`
+		rows, err := tx.QueryContext(ctx, queryLock, firstID, secondID)
+		if err != nil {
+			return err
+		}
 
-	sender, err := getAccount(from)
+		defer rows.Close()
+
+		accounts := make(map[int64]*Account)
+		for rows.Next() {
+			var acc Account
+			if err := rows.Scan(
+				&acc.ID,
+				&acc.Owner,
+				&acc.Balance,
+			); err != nil {
+				return err
+			}
+			accounts[acc.ID] = &acc
+		}
+
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		accFrom, existFrom := accounts[from]
+		accTo, existTo := accounts[to]
+
+		if !existFrom || !existTo {
+			return ErrAccountNotFound
+		}
+
+		if accFrom.Balance < amount {
+			return ErrInsufficientBalance
+		}
+
+		debitQuery := `
+			UPDATE accounts
+			SET balance = balance - $1
+			WHERE id = $2
+			RETURNING id, owner, balance
+		`
+		if err := tx.QueryRowContext(ctx, debitQuery, amount, from).Scan(
+			&sender.ID,
+			&sender.Owner,
+			&sender.Balance,
+		); err != nil {
+			return err
+		}
+
+		creditQuery := `UPDATE accounts SET balance = balance + $1 WHERE id = $2 RETURNING id, owner, balance`
+		if err := tx.QueryRowContext(ctx, creditQuery, amount, to).Scan(&receiver.ID, &receiver.Owner, &receiver.Balance); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
-	receiver, err := getAccount(to)
-	if err != nil {
-		return nil, nil, err
-	}
 
-	if sender.Balance < amount {
-		return nil, nil, ErrInsufficientBalance
-	}
-
-	debitQuery := `
-	UPDATE accounts
-	SET balance = balance - $1
-	WHERE id = $2
-	RETURNING id, owner, balance
-`
-
-	err = tx.QueryRow(debitQuery, amount, sender.ID).Scan(
-		&sender.ID,
-		&sender.Owner,
-		&sender.Balance,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	creditQuery := `
-	UPDATE accounts
-	SET balance = balance + $1
-	WHERE id = $2
-	RETURNING id, owner, balance
-`
-
-	err = tx.QueryRow(creditQuery, amount, receiver.ID).Scan(
-		&receiver.ID,
-		&receiver.Owner,
-		&receiver.Balance,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, nil, err
-	}
-
-	return sender, receiver, nil
+	return &sender, &receiver, nil
 }
