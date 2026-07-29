@@ -32,17 +32,17 @@ func ValidateWithdraw(v *validator.Validator, account *Account) {
 
 }
 
-func (a *AccountModel) Insert(account *Account) error {
+func (m *AccountModel) Insert(ctx context.Context, account *Account) error {
 	query := `
 		INSERT INTO accounts (owner, balance)
 		VALUES ($1, $2)
 		RETURNING id
 	`
 
-	return a.DB.QueryRow(query, account.Owner, account.Balance).Scan(&account.ID)
+	return m.DB.QueryRowContext(ctx, query, account.Owner, account.Balance).Scan(&account.ID)
 }
 
-func (a *AccountModel) Get(id int64) (*Account, error) {
+func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 	if id < 1 {
 		return nil, ErrAccountNotFound
 	}
@@ -54,19 +54,17 @@ func (a *AccountModel) Get(id int64) (*Account, error) {
 
 	var account Account
 
-	err := a.DB.QueryRow(query, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&account.ID,
 		&account.Owner,
 		&account.Balance,
 	)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrAccountNotFound
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	return &account, nil
@@ -109,7 +107,7 @@ func (a *AccountModel) GetAll() ([]*Account, error) {
 	return accounts, nil
 }
 
-func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
+func (m *AccountModel) Deposit(ctx context.Context, id int64, amount int64) (*Account, error) {
 	query := `
 	UPDATE accounts
 	SET balance = balance + $1
@@ -119,7 +117,7 @@ func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
 
 	account := &Account{}
 
-	err := a.DB.QueryRow(query, amount, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, amount, id).Scan(
 		&account.ID,
 		&account.Owner,
 		&account.Balance,
@@ -135,57 +133,34 @@ func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
 	return account, nil
 }
 
-func (m *AccountModel) Withdraw(id int64, amount int64) (*Account, error) {
-	tx, err := m.DB.BeginTx(context.Background(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	defer tx.Rollback()
-
+func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*Account, error) {
 	query := `
-		SELECT id, owner, balance 
-		FROM accounts 
-		WHERE id = $1 
-		FOR UPDATE
-		`
+	UPDATE accounts
+	SET balance = balance - $1
+	WHERE id = $2 AND balance >= $1
+	RETURNING id, owner, balance
+	`
 
-	account := &Account{}
-	err = tx.QueryRow(query,
-		id).Scan(&account.ID, &account.Owner, &account.Balance)
+	var account Account
+	err := m.DB.QueryRowContext(ctx, query, amount, id).Scan(
+		&account.ID,
+		&account.Owner,
+		&account.Balance,
+	)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			var exists bool
+			checkErr := m.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE id = $1)", id).Scan(&exists)
+			if checkErr == nil && exists {
+				return nil, ErrInsufficientBalance
+			}
 			return nil, ErrAccountNotFound
 		}
 		return nil, err
 	}
 
-	if account.Balance < amount {
-		return nil, ErrInsufficientBalance
-	}
-
-	query = `
-	UPDATE accounts
-	SET balance = balance - $1
-	WHERE id = $2
-	RETURNING id, owner, balance
-`
-
-	err = tx.QueryRow(query, amount, account.ID).Scan(
-		&account.ID,
-		&account.Owner,
-		&account.Balance,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return account, nil
+	return &account, nil
 }
 
 func (m *AccountModel) Transfer(from, to, amount int64) (*Account, *Account, error) {
