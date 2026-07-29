@@ -221,7 +221,7 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 		}
 
 		accFrom, existFrom := accounts[from]
-		accTo, existTo := accounts[to]
+		_, existTo := accounts[to]
 
 		if !existFrom || !existTo {
 			return ErrAccountNotFound
