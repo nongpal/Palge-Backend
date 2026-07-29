@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -170,63 +171,77 @@ func (a *AccountModel) Withdraw(id int64, amount int64) (*Account, error) {
 	return account, nil
 }
 
-func (a *AccountModel) Transfer(from int64, to int64, amount int64) (*Account, *Account, error) {
-	tx, err := a.DB.Begin()
+func (m *AccountModel) Transfer(from, to, amount int64) (*Account, *Account, error) {
+	tx, err := m.DB.BeginTx(context.Background(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	defer tx.Rollback()
 
-	sender := &Account{}
-	receiver := &Account{}
+	getAccount := func(id int64) (*Account, error) {
+		query := `
+		SELECT id, owner, balance 
+		FROM accounts 
+		WHERE id = $1 
+		FOR UPDATE
+		`
 
-	err = tx.QueryRow(`
-	SELECT id, owner, balance 
-	FROM accounts 
-	WHERE id = $1 
-	FOR UPDATE`, from).Scan(&sender.ID, &sender.Owner, &sender.Balance)
+		account := &Account{}
+		err := tx.QueryRow(query,
+			id).Scan(&account.ID, &account.Owner, &account.Balance)
 
-	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, nil, ErrAccountNotFound
-		default:
-			return nil, nil, err
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ErrAccountNotFound
+			}
+			return nil, err
 		}
+
+		return account, nil
 	}
 
-	err = tx.QueryRow(`
-	SELECT id, owner, balance 
-	FROM accounts 
-	WHERE id = $1 
-	FOR UPDATE`, to).Scan(&receiver.ID, &receiver.Owner, &receiver.Balance)
-
+	sender, err := getAccount(from)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, nil, ErrAccountNotFound
-		default:
-			return nil, nil, err
-		}
+		return nil, nil, err
 	}
-
-	_, err = tx.Exec(`
-	UPDATE accounts
-	SET balance = balance - $1
-	WHERE id = $2
-	RETURNING id, owner, balance
-	`, amount, sender.ID)
+	receiver, err := getAccount(to)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	_, err = tx.Exec(`
+	if sender.Balance < amount {
+		return nil, nil, ErrInsufficientBalance
+	}
+
+	debitQuery := `
+	UPDATE accounts
+	SET balance = balance - $1
+	WHERE id = $2
+	RETURNING id, owner, balance
+`
+
+	err = tx.QueryRow(debitQuery, amount, sender.ID).Scan(
+		&sender.ID,
+		&sender.Owner,
+		&sender.Balance,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	creditQuery := `
 	UPDATE accounts
 	SET balance = balance + $1
 	WHERE id = $2
 	RETURNING id, owner, balance
-	`, amount, receiver.ID)
+`
+
+	err = tx.QueryRow(creditQuery, amount, receiver.ID).Scan(
+		&receiver.ID,
+		&receiver.Owner,
+		&receiver.Balance,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
