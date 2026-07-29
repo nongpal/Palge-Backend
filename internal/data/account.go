@@ -85,14 +85,14 @@ func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 	return &account, nil
 }
 
-func (a *AccountModel) GetAll() ([]*Account, error) {
+func (a *AccountModel) GetAll(ctx context.Context) ([]*Account, error) {
 	query := `
 	SELECT id, owner, balance
 	FROM accounts
 	ORDER BY id ASC
 	`
 
-	rows, err := a.DB.Query(query)
+	rows, err := a.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
