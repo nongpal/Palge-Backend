@@ -32,6 +32,21 @@ func ValidateWithdraw(v *validator.Validator, account *Account) {
 
 }
 
+func (m *AccountModel) execInTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := m.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (m *AccountModel) Insert(ctx context.Context, account *Account) error {
 	query := `
 		INSERT INTO accounts (owner, balance)
@@ -164,6 +179,7 @@ func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*A
 }
 
 func (m *AccountModel) Transfer(from, to, amount int64) (*Account, *Account, error) {
+	var sender, receiver Account
 	tx, err := m.DB.BeginTx(context.Background(), nil)
 	if err != nil {
 		return nil, nil, err
