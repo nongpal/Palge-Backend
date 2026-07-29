@@ -35,7 +35,7 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err = app.models.Accounts.Insert(account); err != nil {
+	if err = app.models.Accounts.Insert(r.Context(), account); err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -46,20 +46,23 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	err = app.writeJSON(w, http.StatusCreated, envelope{"account": account}, headers)
 
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
 
 func (app *Application) listAccountHandler(w http.ResponseWriter, r *http.Request) {
-	accounts, err := app.models.Accounts.GetAll()
-	// WARN: not yet handled err returned from GetAll
+	accounts, err := app.models.Accounts.GetAll(r.Context())
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{
 		"account": accounts,
 	}, nil)
 
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
 
@@ -70,7 +73,7 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	account, err := app.models.Accounts.Get(id)
+	account, err := app.models.Accounts.Get(r.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
@@ -83,7 +86,7 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
 
@@ -112,7 +115,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := app.models.Accounts.Deposit(id, input.Amount)
+	account, err := app.models.Accounts.Deposit(r.Context(), id, input.Amount)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
@@ -125,7 +128,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
 
@@ -146,12 +149,13 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, data.ErrInvalidAmount)
+	v := validator.New()
+	if data.ValidateAmount(v, input.Amount); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	account, err := app.models.Accounts.Withdraw(id, input.Amount)
+	account, err := app.models.Accounts.Withdraw(r.Context(), id, input.Amount)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
@@ -166,7 +170,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
 
@@ -183,37 +187,24 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if input.Amount <= 0 {
-		app.badRequestResponse(w, r, data.ErrInvalidAmount)
+	v := validator.New()
+	data.ValidateAmount(v, input.Amount)
+	v.Check(input.From > 0, "from", "must be a valid account ID")
+	v.Check(input.To > 0, "to", "must be a valid account ID")
+	v.Check(input.From != input.To, "to", "cannot transfer to the same account")
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	if input.From == input.To {
-		app.errorResponse(w, r, http.StatusUnprocessableEntity, data.ErrSameAccountTransfer.Error())
-		return
-	}
-
-	sender, err := app.models.Accounts.Get(input.From)
+	sender, receiver, err := app.models.Accounts.Transfer(r.Context(), input.From, input.To, input.Amount)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			app.notFoundResponse(w, r)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
-		return
-	}
-
-	if sender.Balance < input.Amount {
-		app.badRequestResponse(w, r, data.ErrInsufficientBalance)
-		return
-	}
-
-	sender, receiver, err := app.models.Accounts.Transfer(input.From, input.To, input.Amount)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
-			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrInsufficientBalance):
+			app.badRequestResponse(w, r, err)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -228,6 +219,6 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	}, nil)
 
 	if err != nil {
-		app.logger.Error(err.Error())
+		app.serverErrorResponse(w, r, err)
 	}
 }
