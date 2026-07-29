@@ -135,36 +135,53 @@ func (a *AccountModel) Deposit(id int64, amount int64) (*Account, error) {
 	return account, nil
 }
 
-func (a *AccountModel) Withdraw(id int64, amount int64) (*Account, error) {
-	query := `
-	UPDATE accounts
-	SET balance = balance - $1
-	WHERE id = $2
-	RETURNING id, owner, balance
-	`
-
-	account, err := a.Get(id)
+func (m *AccountModel) Withdraw(id int64, amount int64) (*Account, error) {
+	tx, err := m.DB.BeginTx(context.Background(), nil)
 	if err != nil {
-		return nil, ErrAccountNotFound
+		return nil, err
+	}
+
+	defer tx.Rollback()
+
+	query := `
+		SELECT id, owner, balance 
+		FROM accounts 
+		WHERE id = $1 
+		FOR UPDATE
+		`
+
+	account := &Account{}
+	err = tx.QueryRow(query,
+		id).Scan(&account.ID, &account.Owner, &account.Balance)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+		return nil, err
 	}
 
 	if account.Balance < amount {
 		return nil, ErrInsufficientBalance
 	}
 
-	account = &Account{}
+	query = `
+	UPDATE accounts
+	SET balance = balance - $1
+	WHERE id = $2
+	RETURNING id, owner, balance
+`
 
-	err = a.DB.QueryRow(query, amount, id).Scan(
+	err = tx.QueryRow(query, amount, account.ID).Scan(
 		&account.ID,
 		&account.Owner,
 		&account.Balance,
 	)
-
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrAccountNotFound
-		}
+		return nil, err
+	}
 
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
