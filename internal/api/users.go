@@ -28,7 +28,10 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		Activated: false,
 	}
 
-	users.Password.Set(input.Password)
+	if err := users.Password.Set(input.Password); err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
 	data.ValidateUser(v, &users)
 	if !v.Valid() {
