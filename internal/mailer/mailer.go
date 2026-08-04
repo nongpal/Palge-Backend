@@ -57,7 +57,7 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 		return err
 	}
 
-	htmlTmpl, err := ht.New("").ParseFS(templateFS, "templates"+templateFile)
+	htmlTmpl, err := ht.New("").ParseFS(templateFS, "templates/"+templateFile)
 	if err != nil {
 		return err
 	}
