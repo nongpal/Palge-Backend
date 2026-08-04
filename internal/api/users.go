@@ -23,8 +23,9 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	v := validator.New()
 
 	users := data.User{
-		Name:  input.Name,
-		Email: input.Email,
+		Name:      input.Name,
+		Email:     input.Email,
+		Activated: false,
 	}
 
 	users.Password.Set(input.Password)
