@@ -41,6 +41,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := app.models.Users.Insert(users); err != nil {
+		app.logger.Error(err.Error())
 		switch {
 		case errors.Is(err, data.ErrDuplicateEmail):
 			v.AddError("email", "a user with this email address already exists")
@@ -51,9 +52,8 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := app.writeJSON(w, http.StatusAccepted, envelope{
-		"name":      users.Name,
-		"Activated": users.Activated,
+	if err := app.writeJSON(w, http.StatusCreated, envelope{
+		"user": users,
 	}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
