@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -22,7 +23,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	v := validator.New()
 
-	users := data.User{
+	users := &data.User{
 		Name:      input.Name,
 		Email:     input.Email,
 		Activated: false,
@@ -33,16 +34,20 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	data.ValidateUser(v, &users)
+	data.ValidateUser(v, users)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	if err := app.models.Users.Insert(&users); err != nil {
-		// TODO: handle duplicate email so don't fallback to server!
-		app.logger.Error(err.Error())
-		app.serverErrorResponse(w, r, err)
+	if err := app.models.Users.Insert(users); err != nil {
+		switch {
+		case errors.Is(err, data.ErrDuplicateEmail):
+			v.AddError("email", "a user with this email address already exists")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
