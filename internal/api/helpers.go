@@ -123,7 +123,9 @@ func (app *Application) readIDParam(r *http.Request) (int64, error) {
 }
 
 func (app *Application) background(fn func()) {
+	app.wg.Add(1)
 	go func() {
+		defer app.wg.Done()
 		defer func() {
 			if err := recover(); err != nil {
 				app.logger.Error(fmt.Sprintf("%v", err))
