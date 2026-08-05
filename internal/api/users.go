@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -22,29 +23,43 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	v := validator.New()
 
-	users := data.User{
-		Name:  input.Name,
-		Email: input.Email,
+	users := &data.User{
+		Name:      input.Name,
+		Email:     input.Email,
+		Activated: false,
 	}
 
-	users.Password.Set(input.Password)
+	if err := users.Password.Set(input.Password); err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
-	data.ValidateUser(v, &users)
+	data.ValidateUser(v, users)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	if err := app.models.Users.Insert(&users); err != nil {
-		// TODO: handle duplicate email so don't fallback to server!
+	if err := app.models.Users.Insert(users); err != nil {
 		app.logger.Error(err.Error())
+		switch {
+		case errors.Is(err, data.ErrDuplicateEmail):
+			v.AddError("email", "a user with this email address already exists")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.mailer.Send(users.Email, "user_welcome.tmpl.html", users)
+	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	if err := app.writeJSON(w, http.StatusAccepted, envelope{
-		"name":      users.Name,
-		"Activated": users.Activated,
+	if err := app.writeJSON(w, http.StatusCreated, envelope{
+		"user": users,
 	}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
