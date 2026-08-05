@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -53,6 +54,12 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.Error(fmt.Sprintf("%v", err))
+			}
+		}()
+
 		err = app.mailer.Send(users.Email, "user_welcome.tmpl.html", users)
 		if err != nil {
 			app.logger.Error(err.Error())
