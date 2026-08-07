@@ -60,3 +60,10 @@ func (m *TokenModel) Insert(token *Token) error {
 
 	return err
 }
+
+func (m *TokenModel) New(userID int64, ttl time.Duration, scope string) (*Token, error) {
+	token := generateToken(userID, ttl, scope)
+
+	err := m.Insert(token)
+	return token, err
+}
