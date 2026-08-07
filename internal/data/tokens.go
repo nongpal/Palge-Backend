@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	ScopeActivation = "activation"
+)
+
 type Token struct {
 	Plaintext string
 	Hash      []byte
