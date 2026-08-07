@@ -219,7 +219,7 @@ func (m *UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
+			return nil, ErrAccountNotFound
 		default:
 			return nil, err
 		}
