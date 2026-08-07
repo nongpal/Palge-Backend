@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -42,4 +43,20 @@ func generateToken(userID int64, ttl time.Duration, scope string) *Token {
 func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
 	v.Check(tokenPlaintext != "", "token", "must be provided")
 	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
+}
+
+func (m *TokenModel) Insert(token *Token) error {
+	query := `
+	INSERT INTO tokens (hash, user_id, expiry, scope)
+	VALUES ($1, $2, $3, $4)
+	`
+
+	args := []any{token.Hash, token.UserID, token.Expiry, token.Scope}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, query, args...)
+
+	return err
 }
