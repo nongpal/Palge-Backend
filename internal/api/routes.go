@@ -14,6 +14,7 @@ func (app *Application) routes() http.Handler {
 	mux.HandleFunc("POST /v1/accounts/{id}/withdraw", app.withdrawHandler)
 	mux.HandleFunc("POST /v1/transfers", app.transferHandler)
 	mux.HandleFunc("POST /v1/users", app.registerUserHandler)
+	mux.HandleFunc("PUT /v1/users/activated", app.activateUserHandler)
 
 	return mux
 }
