@@ -3,6 +3,7 @@ package data
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"time"
 
 	"github.com/nongpal/Palge-Backend/internal/validator"
@@ -18,6 +19,10 @@ type Token struct {
 	UserID    int64
 	Expiry    time.Time
 	Scope     string
+}
+
+type TokenModel struct {
+	DB *sql.DB
 }
 
 func generateToken(userID int64, ttl time.Duration, scope string) *Token {
