@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
@@ -41,7 +42,6 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := app.models.Users.Insert(users); err != nil {
-		app.logger.Error(err.Error())
 		switch {
 		case errors.Is(err, data.ErrDuplicateEmail):
 			v.AddError("email", "a user with this email address already exists")
@@ -52,8 +52,18 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	token, err := app.models.Tokens.New(users.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	app.background(func() {
-		err = app.mailer.Send(users.Email, "user_welcome.tmpl.html", users)
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+			"userID":          users.ID,
+		}
+		err = app.mailer.Send(users.Email, "user_welcome.tmpl.html", data)
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
