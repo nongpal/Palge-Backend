@@ -17,5 +17,5 @@ func (app *Application) routes() http.Handler {
 	mux.HandleFunc("PUT /v1/users/activated", app.activateUserHandler)
 	mux.HandleFunc("POST /v1/tokens/authentication", app.createAuthenticationTokenHandler)
 
-	return mux
+	return app.authenticate(mux)
 }
