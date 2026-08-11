@@ -34,7 +34,7 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
-			app.invalidCredentialResponse(w, r)
+			app.invalidAuthenticationTokenResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
