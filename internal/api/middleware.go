@@ -52,7 +52,7 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 	})
 }
 
-func (app *Application) requiredActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+func (app *Application) requiredAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
 
@@ -61,6 +61,14 @@ func (app *Application) requiredActivatedUser(next http.HandlerFunc) http.Handle
 			return
 		}
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *Application) requiredActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
 		if !user.Activated {
 			app.inactiveAccountResponse(w, r)
 			return
@@ -68,4 +76,6 @@ func (app *Application) requiredActivatedUser(next http.HandlerFunc) http.Handle
 
 		next.ServeHTTP(w, r)
 	})
+
+	return app.requiredAuthenticatedUser(fn)
 }
