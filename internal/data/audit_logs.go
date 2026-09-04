@@ -1,6 +1,9 @@
 package data
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type AuditLog struct {
 	ID         int64     `json:"id"`
@@ -12,4 +15,8 @@ type AuditLog struct {
 	UserAgent  string    `json:"user_agent"`
 	Result     string    `json:"result"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type AuditLogModel struct {
+	DB *sql.DB
 }
