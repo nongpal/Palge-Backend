@@ -124,17 +124,13 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		auditLog := &data.AuditLog{
+		app.recordAuditLog(r, &data.AuditLog{
 			UserID:     &user.ID,
 			Action:     "deposit",
 			Resource:   "account",
 			ResourceID: &id,
-			IPAddress:  clientIP(r),
-			UserAgent:  r.UserAgent(),
 			Result:     "failed",
-		}
-
-		app.recordAuditLog(r, auditLog)
+		})
 
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
@@ -146,17 +142,13 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	auditLog := &data.AuditLog{
+	app.recordAuditLog(r, &data.AuditLog{
 		UserID:     &user.ID,
 		Action:     "deposit",
 		Resource:   "account",
 		ResourceID: &id,
-		IPAddress:  clientIP(r),
-		UserAgent:  r.UserAgent(),
 		Result:     "success",
-	}
-
-	app.recordAuditLog(r, auditLog)
+	})
 
 	err = app.writeJSON(
 		w,
@@ -192,8 +184,18 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	user := app.contextGetUser(r)
+
 	account, err := app.models.Accounts.Withdraw(r.Context(), id, input.Amount)
 	if err != nil {
+		app.recordAuditLog(r, &data.AuditLog{
+			UserID:     &user.ID,
+			Action:     "withdraw",
+			Resource:   "account",
+			ResourceID: &id,
+			Result:     "failed",
+		})
+		
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			app.notFoundResponse(w, r)
@@ -204,6 +206,14 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		}
 		return
 	}
+
+	app.recordAuditLog(r, &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "withdraw",
+		Resource:   "account",
+		ResourceID: &id,
+		Result:     "success",
+	})
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
