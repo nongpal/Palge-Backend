@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -85,7 +86,7 @@ func (app *Application) writeJSON(w http.ResponseWriter, status int, data envelo
 }
 
 func (app *Application) recordAuditLog(r *http.Request, auditLog *data.AuditLog) {
-	auditLog.IPAddress = r.RemoteAddr
+	auditLog.IPAddress = clientIP(r)
 	auditLog.UserAgent = r.UserAgent()
 
 	if err := app.models.AuditLogs.Insert(auditLog); err != nil {
@@ -119,4 +120,13 @@ func (app *Application) background(fn func()) {
 
 		fn()
 	}()
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+
+	return host
 }
