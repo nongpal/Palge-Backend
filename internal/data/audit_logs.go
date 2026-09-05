@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"time"
 )
@@ -19,4 +20,38 @@ type AuditLog struct {
 
 type AuditLogModel struct {
 	DB *sql.DB
+}
+
+func (m *AuditLogModel) Insert(auditLog *AuditLog) error {
+	query := `
+		INSERT INTO audit_logs (
+			user_id,
+			action,
+			resource,
+			resource_id,
+			ip_address,
+			user_agent,
+			result
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(
+		ctx,
+		query,
+		auditLog.UserID,
+		auditLog.Action,
+		auditLog.Resource,
+		auditLog.ResourceID,
+		auditLog.IPAddress,
+		auditLog.UserAgent,
+		auditLog.Result,
+	).Scan(
+		&auditLog.ID,
+		&auditLog.CreatedAt,
+	)
 }
