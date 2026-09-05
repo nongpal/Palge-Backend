@@ -115,18 +115,55 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := app.models.Accounts.Deposit(r.Context(), id, input.Amount)
+	user := app.contextGetUser(r)
+
+	account, err := app.models.Accounts.Deposit(
+		r.Context(),
+		id,
+		input.Amount,
+	)
+
 	if err != nil {
+		auditLog := &data.AuditLog{
+			UserID:     &user.ID,
+			Action:     "deposit",
+			Resource:   "account",
+			ResourceID: &id,
+			IPAddress:  clientIP(r),
+			UserAgent:  r.UserAgent(),
+			Result:     "failed",
+		}
+
+		app.recordAuditLog(r, auditLog)
+
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
+
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
+	auditLog := &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "deposit",
+		Resource:   "account",
+		ResourceID: &id,
+		IPAddress:  clientIP(r),
+		UserAgent:  r.UserAgent(),
+		Result:     "success",
+	}
+
+	app.recordAuditLog(r, auditLog)
+
+	err = app.writeJSON(
+		w,
+		http.StatusOK,
+		envelope{"account": account},
+		nil,
+	)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
