@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/nongpal/Palge-Backend/internal/data"
 )
 
 type envelope map[string]any
@@ -84,31 +84,16 @@ func (app *Application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-func (app *Application) readString(qs url.Values, key string, defaultValue string) string {
-	s := qs.Get(key)
+func (app *Application) recordAuditLog(r *http.Request, auditLog *data.AuditLog) {
+	auditLog.IPAddress = r.RemoteAddr
+	auditLog.UserAgent = r.UserAgent()
 
-	if s == "" {
-		return defaultValue
+	if err := app.models.AuditLogs.Insert(auditLog); err != nil {
+		app.logger.Error(
+			"failed to insert audit log",
+			"error", err,
+		)
 	}
-
-	return s
-}
-
-func (app *Application) readInt(qs url.Values, key string, defaultValue int) int {
-	s := qs.Get(key)
-
-	if s == "" {
-		return defaultValue
-	}
-
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		// NOTE: use validator instead of slog.Error(...)
-		slog.Error(err.Error())
-		return defaultValue
-	}
-
-	return i
 }
 
 func (app *Application) readIDParam(r *http.Request) (int64, error) {
