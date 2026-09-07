@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS permissions (
     id bigserial PRIMARY KEY,
-    code text NOT NULL
+    code text NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS users_permissions (
