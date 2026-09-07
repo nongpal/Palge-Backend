@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users_permissions (
 
 INSERT INTO permissions (code)
 VALUES
+    ('accounts:read'),
+    ('accounts:create'),
     ('accounts:update'),
     ('accounts:delete'),
     ('accounts:deposit'),
