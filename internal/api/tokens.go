@@ -34,6 +34,14 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
+			app.recordAuditLog(r, &data.AuditLog{
+				UserID:     nil,
+				Action:     "login",
+				Resource:   "user",
+				ResourceID: nil,
+				Result:     "failed",
+			})
+
 			app.invalidAuthenticationTokenResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -48,6 +56,14 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 
 	if !match {
+		app.recordAuditLog(r, &data.AuditLog{
+			UserID:     nil,
+			Action:     "login",
+			Resource:   "user",
+			ResourceID: nil,
+			Result:     "failed",
+		})
+
 		app.invalidCredentialResponse(w, r)
 		return
 	}
@@ -57,6 +73,14 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
+	app.recordAuditLog(r, &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "login",
+		Resource:   "user",
+		ResourceID: &user.ID,
+		Result:     "success",
+	})
 
 	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication": token}, nil)
 	if err != nil {
