@@ -128,14 +128,6 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	app.recordAuditLog(r, &data.AuditLog{
-		UserID:     &user.ID,
-		Action:     "activate",
-		Resource:   "user",
-		ResourceID: &user.ID,
-		Result:     "success",
-	})
-
 	user.Activated = true
 
 	if err := app.models.Users.Update(user); err != nil {
@@ -164,6 +156,14 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
+	app.recordAuditLog(r, &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "activate",
+		Resource:   "user",
+		ResourceID: &user.ID,
+		Result:     "success",
+	})
 
 	if err := app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
