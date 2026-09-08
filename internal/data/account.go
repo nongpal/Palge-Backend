@@ -192,7 +192,7 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 		queryLock := `
 		SELECT id, owner, balance 
 		FROM accounts 
-		WHERE id = ($1, $2)
+		WHERE id in ($1, $2)
 		ORDER BY id
 		FOR UPDATE
 		`
