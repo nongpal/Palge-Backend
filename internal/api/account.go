@@ -195,7 +195,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 			ResourceID: &id,
 			Result:     "failed",
 		})
-		
+
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			app.notFoundResponse(w, r)
@@ -245,8 +245,18 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	user := app.contextGetUser(r)
+
 	sender, receiver, err := app.models.Accounts.Transfer(r.Context(), input.From, input.To, input.Amount)
 	if err != nil {
+		app.recordAuditLog(r, &data.AuditLog{
+			UserID:     &user.ID,
+			Action:     "transfer",
+			Resource:   "account",
+			ResourceID: &input.From,
+			Result:     "failed",
+		})
+
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			app.notFoundResponse(w, r)
@@ -257,6 +267,14 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		}
 		return
 	}
+
+	app.recordAuditLog(r, &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "transfer",
+		Resource:   "account",
+		ResourceID: &input.From,
+		Result:     "success",
+	})
 
 	err = app.writeJSON(w, http.StatusOK, envelope{
 		"transfer": map[string]*data.Account{
