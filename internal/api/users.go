@@ -110,6 +110,14 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 
 	user, err := app.models.Users.GetForToken(data.ScopeActivation, input.TokenPlaintext)
 	if err != nil {
+		app.recordAuditLog(r, &data.AuditLog{
+			UserID:     nil,
+			Action:     "activate",
+			Resource:   "user",
+			ResourceID: nil,
+			Result:     "failed",
+		})
+
 		switch {
 		case errors.Is(err, data.ErrAccountNotFound):
 			v.AddError("token", "invalid or expired activation token")
@@ -119,6 +127,14 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
+
+	app.recordAuditLog(r, &data.AuditLog{
+		UserID:     &user.ID,
+		Action:     "activate",
+		Resource:   "user",
+		ResourceID: &user.ID,
+		Result:     "success",
+	})
 
 	user.Activated = true
 
