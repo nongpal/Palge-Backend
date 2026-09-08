@@ -13,7 +13,7 @@ func (app *Application) routes() http.Handler {
 	mux.HandleFunc("GET /v1/accounts/{id}", app.requirePermission("accounts:read", app.showAccountHandler))
 	mux.HandleFunc("POST /v1/accounts/{id}/deposit", app.requirePermission("accounts:deposit", app.depositHandler))
 	mux.HandleFunc("POST /v1/accounts/{id}/withdraw", app.requirePermission("accounts:withdraw", app.withdrawHandler))
-	mux.HandleFunc("POST /v1/transfers", app.requirePermission("account:transfer", app.transferHandler))
+	mux.HandleFunc("POST /v1/transfers", app.requirePermission("accounts:transfer", app.transferHandler))
 
 	mux.HandleFunc("POST /v1/users", app.registerUserHandler)
 	mux.HandleFunc("PUT /v1/users/activated", app.activateUserHandler)
