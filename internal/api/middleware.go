@@ -93,6 +93,13 @@ func (app *Application) requirePermission(code string, next http.HandlerFunc) ht
 		}
 
 		if !permission.Include(code) {
+			app.recordAuditLog(r, &data.AuditLog{
+				UserID:     &user.ID,
+				Action:     "authorize",
+				Resource:   "account",
+				ResourceID: nil,
+				Result:     "failed",
+			})
 			app.notPermittedResponse(w, r)
 			return
 		}
