@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -99,4 +101,19 @@ func (app *Application) requirePermission(code string, next http.HandlerFunc) ht
 	}
 
 	return app.requiredActivatedUser(fn)
+}
+
+func (app *Application) requestID(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = uuid.NewString()
+		}
+
+		ctx := context.WithValue(r.Context(), "requestID", reqID)
+
+		w.Header().Set("X-Request-ID", reqID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
