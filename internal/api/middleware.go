@@ -117,3 +117,11 @@ func (app *Application) requestID(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+func (app *Application) contextGetRequestID(ctx context.Context) string {
+	if id, ok := ctx.Value("X-Request-ID").(string); ok {
+		return id
+	}
+
+	return ""
+}
