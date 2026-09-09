@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -135,4 +136,26 @@ func (app *Application) contextGetRequestID(ctx context.Context) string {
 	}
 
 	return ""
+}
+
+func (app *Application) requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		rw := &responseWriter{
+			ResponseWriter: w,
+		}
+
+		next.ServeHTTP(rw, r)
+
+		app.logger.Info(
+			"request completed",
+			"method", r.Method,
+			"uri", r.URL.RequestURI(),
+			"status", rw.status,
+			"duration", time.Since(start),
+			"request_id", app.contextGetRequestID(r.Context()),
+			"ip", clientIP(r),
+		)
+	})
 }
