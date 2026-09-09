@@ -114,7 +114,7 @@ func (app *Application) requirePermission(code string, next http.HandlerFunc) ht
 	return app.requiredActivatedUser(fn)
 }
 
-func (app *Application) requestID(next http.HandlerFunc) http.HandlerFunc {
+func (app *Application) requestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqID := r.Header.Get("X-Request-ID")
 		if reqID == "" {
