@@ -104,6 +104,13 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	v := validator.New()
 
 	if data.ValidateTokenPlaintext(v, input.TokenPlaintext); !v.Valid() {
+		app.recordAuditLog(r, &data.AuditLog{
+			UserID:     nil,
+			Action:     "activate",
+			Resource:   "user",
+			ResourceID: nil,
+			Result:     "failed",
+		})
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
