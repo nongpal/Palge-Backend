@@ -28,7 +28,13 @@ func (app *Application) serverErrorResponse(w http.ResponseWriter, r *http.Reque
 	app.logError(r, err)
 
 	message := "the server encountered a problem and could not process your request"
-	app.errorResponse(w, r, http.StatusInternalServerError, message)
+	envlp := envelope{"error": message, "request_id": app.contextGetRequestID(r.Context())}
+
+	err = app.writeJSON(w, http.StatusInternalServerError, envlp, nil)
+	if err != nil {
+		app.logError(r, err)
+		w.WriteHeader(500)
+	}
 }
 
 func (app *Application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
