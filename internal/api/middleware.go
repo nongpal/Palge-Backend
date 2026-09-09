@@ -11,6 +11,10 @@ import (
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
 
+type reqContextKey string
+
+const requestIDKey reqContextKey = "requestID"
+
 func (app *Application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Authorization")
@@ -117,7 +121,7 @@ func (app *Application) requestID(next http.HandlerFunc) http.HandlerFunc {
 			reqID = uuid.NewString()
 		}
 
-		ctx := context.WithValue(r.Context(), "requestID", reqID)
+		ctx := context.WithValue(r.Context(), requestIDKey, reqID)
 
 		w.Header().Set("X-Request-ID", reqID)
 
@@ -126,7 +130,7 @@ func (app *Application) requestID(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (app *Application) contextGetRequestID(ctx context.Context) string {
-	if id, ok := ctx.Value("X-Request-ID").(string); ok {
+	if id, ok := ctx.Value(requestIDKey).(string); ok {
 		return id
 	}
 
