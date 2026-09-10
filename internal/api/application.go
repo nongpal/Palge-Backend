@@ -1,11 +1,12 @@
 package api
 
 import (
-	"flag"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 
+	"github.com/joho/godotenv"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/mailer"
 )
@@ -36,17 +37,33 @@ type Application struct {
 }
 
 func NewConfig(cfg *Config) {
-	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:postgres@localhost:5432/palge?sslmode=disable", "PostgreSQL DSN")
+	_ = godotenv.Load()
 
-	// SMTP Config
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 2525, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "8ee421160eb95b", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "f81a52d6f9a102", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Palge <no-reply@github.com/nongpal/Palge-Backend>", "SMTP sender")
-	flag.Parse()
+	cfg.Port = getEnvAsInt("PORT", 4000)
+	cfg.Env = getEnv("ENV", "development")
+	cfg.db.dsn = getEnv("DB_DSN", "postgres://postgres:postgres@localhost:5433/palge?sslmode=disable")
+
+	cfg.smtp.host = getEnv("SMTP_HOST", "sandbox.smtp.mailtrap.io")
+	cfg.smtp.port = getEnvAsInt("SMTP_PORT", 2525)
+	cfg.smtp.username = getEnv("SMTP_USERNAME", "")
+	cfg.smtp.password = getEnv("SMTP_PASSWORD", "")
+	cfg.smtp.sender = getEnv("SMTP_SENDER", "Palge <no-reply@github.com/nongpal/Palge-Backend>")
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
 }
 
 func NewApplication(cfg Config) (*Application, error) {
