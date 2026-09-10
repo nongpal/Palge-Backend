@@ -37,8 +37,8 @@ The goal of this project is to build a banking backend incrementally while apply
 - [x] v0.1.0 Foundation
 - [x] v0.2.0 Core Banking API
 - [x] v0.3.0 PostgreSQL Persistence
-- [ ] v0.4.0 Authentication (on-going)
-- [ ] v0.5.0 Production Readiness
+- [x] v0.4.0 Authentication
+- [ ] v0.5.0 Production Readiness (on-going)
 - [ ] v0.6.0 Performance
 - [ ] v0.7.0 Observability
 - [ ] v0.8.0 Distributed Architecture
