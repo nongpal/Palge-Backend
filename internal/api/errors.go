@@ -84,3 +84,8 @@ func (app *Application) notPermittedResponse(w http.ResponseWriter, r *http.Requ
 	message := `your user account doesn't have the ncessary permissions to access this resource`
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
+
+func (app *Application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "rate limit exceeded"
+	app.errorResponse(w, r, http.StatusTooManyRequests, message)
+}
