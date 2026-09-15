@@ -8,21 +8,21 @@ import (
 )
 
 type ClientInfo struct {
-	mu       sync.Mutex
-	tokens   int
-	lastSeen time.Time
+	mu         sync.Mutex
+	tokens     float64
+	lastRefill time.Time
 }
 
 type RateLimiter struct {
 	clientMap sync.Map
-	rate      int
-	window    time.Duration
+	rate      float64
+	capacity  float64
 }
 
-func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
+func NewRateLimiter(rate float64, capacity float64) *RateLimiter {
 	return &RateLimiter{
-		rate:   rate,
-		window: window,
+		rate:     rate,
+		capacity: capacity,
 	}
 }
 
@@ -30,8 +30,8 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	now := time.Now()
 
 	actual, _ := rl.clientMap.LoadOrStore(clientID, &ClientInfo{
-		tokens:   rl.rate,
-		lastSeen: now,
+		tokens:     rl.rate,
+		lastRefill: now,
 	})
 
 	client := actual.(*ClientInfo)
@@ -39,12 +39,14 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
-	if now.Sub(client.lastSeen) >= rl.window {
-		client.tokens = rl.rate
-		client.lastSeen = now
+	elapsed := now.Sub(client.lastRefill).Seconds()
+	client.tokens += elapsed * rl.rate
+
+	if client.tokens > rl.capacity {
+		client.tokens = rl.capacity
 	}
 
-	if client.tokens > 0 {
+	if client.tokens >= 1 {
 		client.tokens--
 		return true
 	}
@@ -53,7 +55,7 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 
 }
 func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
-	limiter := NewRateLimiter(10, 10*time.Second)
+	limiter := NewRateLimiter(2, 10)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := app.getRealIP(r)
