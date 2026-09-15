@@ -30,7 +30,7 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	now := time.Now()
 
 	actual, _ := rl.clientMap.LoadOrStore(clientID, &ClientInfo{
-		tokens:     rl.rate,
+		tokens:     rl.capacity,
 		lastRefill: now,
 	})
 
@@ -46,6 +46,8 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 		client.tokens = rl.capacity
 	}
 
+	client.lastRefill = now
+
 	if client.tokens >= 1 {
 		client.tokens--
 		return true
@@ -55,7 +57,7 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 
 }
 func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
-	limiter := NewRateLimiter(2, 10)
+	limiter := NewRateLimiter(1, 10)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := app.getRealIP(r)
