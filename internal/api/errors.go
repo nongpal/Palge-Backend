@@ -86,6 +86,12 @@ func (app *Application) notPermittedResponse(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *Application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	message := "rate limit exceeded"
-	app.errorResponse(w, r, http.StatusTooManyRequests, message)
+	envlp := envelope{
+		"error":      "rate limit exceeded",
+		"request_id": app.contextGetRequestID(r.Context()),
+	}
+	err := app.writeJSON(w, http.StatusTooManyRequests, envlp, nil)
+	if err != nil {
+		app.logError(r, err)
+	}
 }
