@@ -20,5 +20,5 @@ func (app *Application) routes() http.Handler {
 
 	mux.HandleFunc("POST /v1/tokens/authentication", app.createAuthenticationTokenHandler)
 
-	return app.requestID(app.requestLogger(app.authenticate(mux)))
+	return app.requestID(app.requestLogger(app.authenticate(app.middlewareRateLimit(mux))))
 }
