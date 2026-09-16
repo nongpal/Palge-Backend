@@ -11,6 +11,7 @@ type ClientInfo struct {
 	mu         sync.Mutex
 	tokens     float64
 	lastRefill time.Time
+	lastSeen   time.Time
 }
 
 type RateLimiter struct {
@@ -56,14 +57,15 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	return false
 
 }
-func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
-	limiter := NewRateLimiter(1, 10)
 
+func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := app.getRealIP(r)
-		if !limiter.Allow(ip) {
-			app.rateLimitExceededResponse(w, r)
-			return
+		if app.cfg.rl.enabled {
+			ip := app.getRealIP(r)
+			if !app.rateLimiter.Allow(ip) {
+				app.rateLimitExceededResponse(w, r)
+				return
+			}
 		}
 
 		next.ServeHTTP(w, r)
