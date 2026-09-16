@@ -109,10 +109,11 @@ func NewApplication(cfg Config) (*Application, error) {
 	}
 
 	app := &Application{
-		cfg:    cfg,
-		logger: logger,
-		models: data.NewModels(db),
-		mailer: mailer,
+		cfg:         cfg,
+		rateLimiter: NewRateLimiter(cfg.rl.rps, cfg.rl.burst),
+		logger:      logger,
+		models:      data.NewModels(db),
+		mailer:      mailer,
 	}
 	return app, nil
 }
