@@ -73,6 +73,20 @@ func getEnvAsInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func getEnvAsBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		switch value {
+		case "true":
+			return true
+		case "false":
+			return false
+		default:
+			slog.Error("this field only support boolean value; true or false")
+		}
+	}
+	return defaultValue
+}
+
 func NewApplication(cfg Config) (*Application, error) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
