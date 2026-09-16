@@ -57,8 +57,8 @@ func NewConfig(cfg *Config) {
 	cfg.smtp.sender = getEnv("SMTP_SENDER", "Palge <no-reply@github.com/nongpal/Palge-Backend>")
 
 	cfg.rl.enabled = getEnvAsBool("RATE_LIMIT_ENABLED", true)
-	cfg.rl.rps = getEnvAsInt("RATE_LIMIT_RPS", 2)
-	cfg.rl.burst = getEnvAsInt("RATE_LIMIT_BURST", 4)
+	cfg.rl.rps = getEnvAsFloat("RATE_LIMIT_RPS", 2)
+	cfg.rl.burst = getEnvAsFloat("RATE_LIMIT_BURST", 4)
 }
 
 func getEnv(key, defaultValue string) string {
@@ -71,6 +71,15 @@ func getEnv(key, defaultValue string) string {
 func getEnvAsInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.ParseFloat(value, 64); err == nil {
 			return intValue
 		}
 	}
