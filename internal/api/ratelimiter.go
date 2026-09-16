@@ -48,6 +48,7 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	}
 
 	client.lastRefill = now
+	client.lastSeen = now
 
 	if client.tokens >= 1 {
 		client.tokens--
@@ -55,7 +56,22 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 	}
 
 	return false
+}
 
+func (rl *RateLimiter) StartJanitor(interval, expiry time.Duration) {
+	rl.clientMap.Range(func(key, value any) bool {
+		client := value.(*ClientInfo)
+
+		client.mu.Lock()
+		defer client.mu.Unlock()
+
+		if time.Since(client.lastSeen) > expiry {
+			rl.clientMap.Delete(key)
+		}
+		return true
+	})
+
+	time.Sleep(interval)
 }
 
 func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
