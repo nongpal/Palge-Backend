@@ -29,8 +29,8 @@ type Config struct {
 
 	rl struct {
 		enabled bool
-		rps     int
-		burst   int
+		rps     float64
+		burst   float64
 	}
 }
 
@@ -55,6 +55,10 @@ func NewConfig(cfg *Config) {
 	cfg.smtp.username = getEnv("SMTP_USERNAME", "")
 	cfg.smtp.password = getEnv("SMTP_PASSWORD", "")
 	cfg.smtp.sender = getEnv("SMTP_SENDER", "Palge <no-reply@github.com/nongpal/Palge-Backend>")
+
+	cfg.rl.enabled = getEnvAsBool("RATE_LIMIT_ENABLED", true)
+	cfg.rl.rps = getEnvAsInt("RATE_LIMIT_RPS", 2)
+	cfg.rl.burst = getEnvAsInt("RATE_LIMIT_BURST", 4)
 }
 
 func getEnv(key, defaultValue string) string {
