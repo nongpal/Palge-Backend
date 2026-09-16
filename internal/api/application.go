@@ -26,6 +26,12 @@ type Config struct {
 		password string
 		sender   string
 	}
+
+	rl struct {
+		enabled bool
+		rps     int
+		burst   int
+	}
 }
 
 type Application struct {
