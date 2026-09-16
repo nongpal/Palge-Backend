@@ -75,13 +75,8 @@ func getEnvAsInt(key string, defaultValue int) int {
 
 func getEnvAsBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
-		switch value {
-		case "true":
-			return true
-		case "false":
-			return false
-		default:
-			slog.Error("this field only support boolean value; true or false")
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
 		}
 	}
 	return defaultValue
