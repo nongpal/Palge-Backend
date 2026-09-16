@@ -29,11 +29,12 @@ type Config struct {
 }
 
 type Application struct {
-	cfg    Config
-	logger *slog.Logger
-	models data.Models
-	mailer *mailer.Mailer
-	wg     sync.WaitGroup
+	cfg         Config
+	rateLimiter *RateLimiter
+	logger      *slog.Logger
+	models      data.Models
+	mailer      *mailer.Mailer
+	wg          sync.WaitGroup
 }
 
 func NewConfig(cfg *Config) {
