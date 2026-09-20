@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/nongpal/Palge-Backend/internal/data"
@@ -31,8 +32,8 @@ type Config struct {
 		enabled          bool
 		rps              float64
 		burst            float64
-		janitor_interval int64
-		client_expiry    int64
+		janitor_interval time.Duration
+		client_expiry    time.Duration
 	}
 }
 
@@ -61,8 +62,8 @@ func NewConfig(cfg *Config) {
 	cfg.rl.enabled = getEnvAsBool("RATE_LIMIT_ENABLED", true)
 	cfg.rl.rps = getEnvAsFloat("RATE_LIMIT_RPS", 2)
 	cfg.rl.burst = getEnvAsFloat("RATE_LIMIT_BURST", 4)
-	cfg.rl.janitor_interval = int64(getEnvAsInt("RATE_LIMIT_JANITOR_INTERVAL", 1))
-	cfg.rl.client_expiry = int64(getEnvAsInt("RATE_LIMIT_CLIENT_EXPIRY", 10))
+	cfg.rl.janitor_interval = getEnvAsTime("RATE_LIMIT_JANITOR_INTERVAL", 1*time.Minute)
+	cfg.rl.client_expiry = getEnvAsTime("RATE_LIMIT_CLIENT_EXPIRY", 10*time.Minute)
 }
 
 func getEnv(key, defaultValue string) string {
@@ -94,6 +95,15 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
 		if boolValue, err := strconv.ParseBool(value); err == nil {
 			return boolValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsTime(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if TimeValue, err := time.ParseDuration(value); err == nil {
+			return TimeValue
 		}
 	}
 	return defaultValue
