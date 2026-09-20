@@ -53,6 +53,13 @@ func (app *Application) Run() error {
 		"env", app.cfg.Env,
 	)
 
+	if app.cfg.rl.enabled {
+		app.rateLimiter.StartJanitor(
+			time.Duration(app.cfg.rl.janitor_interval),
+			time.Duration(app.cfg.rl.client_expiry),
+		)
+	}
+
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
