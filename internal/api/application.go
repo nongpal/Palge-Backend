@@ -28,9 +28,11 @@ type Config struct {
 	}
 
 	rl struct {
-		enabled bool
-		rps     float64
-		burst   float64
+		enabled          bool
+		rps              float64
+		burst            float64
+		janitor_interval int64
+		client_expiry    int64
 	}
 }
 
