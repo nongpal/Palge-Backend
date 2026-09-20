@@ -18,12 +18,14 @@ type RateLimiter struct {
 	clientMap sync.Map
 	rate      float64
 	capacity  float64
+	stop      chan struct{}
 }
 
 func NewRateLimiter(rate float64, capacity float64) *RateLimiter {
 	return &RateLimiter{
 		rate:     rate,
 		capacity: capacity,
+		stop:     make(chan struct{}),
 	}
 }
 
