@@ -41,6 +41,10 @@ func (app *Application) Run() error {
 			shutdownErr <- err
 		}
 
+		if app.cfg.rl.enabled {
+			app.rateLimiter.StopJanitor()
+		}
+
 		app.logger.Info("completing background tasks", "addr", srv.Addr)
 
 		app.wg.Wait()
