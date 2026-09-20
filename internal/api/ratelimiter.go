@@ -64,20 +64,30 @@ func (rl *RateLimiter) StartJanitor(interval, expiry time.Duration) {
 
 	ticker := time.NewTicker(interval)
 	go func() {
-		for range ticker.C {
-			rl.clientMap.Range(func(key, value any) bool {
-				client := value.(*ClientInfo)
+		for {
+			select {
+			case <-ticker.C:
+				rl.clientMap.Range(func(key, value any) bool {
+					client := value.(*ClientInfo)
 
-				client.mu.Lock()
-				defer client.mu.Unlock()
+					client.mu.Lock()
+					defer client.mu.Unlock()
 
-				if time.Since(client.lastSeen) > expiry {
-					rl.clientMap.Delete(key)
-				}
-				return true
-			})
+					if time.Since(client.lastSeen) > expiry {
+						rl.clientMap.Delete(key)
+					}
+					return true
+				})
+			case <-rl.stop:
+				ticker.Stop()
+				return
+			}
 		}
 	}()
+}
+
+func (rl *RateLimiter) StopJanitor() {
+	close(rl.stop)
 }
 
 func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
