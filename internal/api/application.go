@@ -61,6 +61,8 @@ func NewConfig(cfg *Config) {
 	cfg.rl.enabled = getEnvAsBool("RATE_LIMIT_ENABLED", true)
 	cfg.rl.rps = getEnvAsFloat("RATE_LIMIT_RPS", 2)
 	cfg.rl.burst = getEnvAsFloat("RATE_LIMIT_BURST", 4)
+	cfg.rl.janitor_interval = int64(getEnvAsInt("RATE_LIMIT_JANITOR_INTERVAL", 1))
+	cfg.rl.client_expiry = int64(getEnvAsInt("RATE_LIMIT_CLIENT_EXPIRY", 10))
 }
 
 func getEnv(key, defaultValue string) string {
