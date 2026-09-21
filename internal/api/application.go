@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -65,6 +66,7 @@ func NewConfig(cfg *Config) {
 	cfg.rl.burst = getEnvAsFloat("RATE_LIMIT_BURST", 4)
 	cfg.rl.janitor_interval = getEnvAsTime("RATE_LIMIT_JANITOR_INTERVAL", 1*time.Minute)
 	cfg.rl.client_expiry = getEnvAsTime("RATE_LIMIT_CLIENT_EXPIRY", 10*time.Minute)
+	cfg.rl.trustedProxies = getEnvAsSlice("RATE_LIMIT_TRUSTED_PROXIES", []string{})
 }
 
 func getEnv(key, defaultValue string) string {
@@ -106,6 +108,19 @@ func getEnvAsTime(key string, defaultValue time.Duration) time.Duration {
 		if TimeValue, err := time.ParseDuration(value); err == nil {
 			return TimeValue
 		}
+	}
+	return defaultValue
+}
+
+func getEnvAsSlice(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		sliceValue := strings.Split(value, ",")
+
+		for i := range sliceValue {
+			sliceValue[i] = strings.TrimSpace(sliceValue[i])
+		}
+
+		return sliceValue
 	}
 	return defaultValue
 }
