@@ -19,6 +19,7 @@ type RateLimiter struct {
 	rate      float64
 	capacity  float64
 	stop      chan struct{}
+	stopOnce  sync.Once
 }
 
 func NewRateLimiter(rate float64, capacity float64) *RateLimiter {
@@ -87,7 +88,9 @@ func (rl *RateLimiter) StartJanitor(interval, expiry time.Duration) {
 }
 
 func (rl *RateLimiter) StopJanitor() {
-	close(rl.stop)
+	rl.stopOnce.Do(func() {
+		close(rl.stop)
+	})
 }
 
 func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
