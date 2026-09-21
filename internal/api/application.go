@@ -34,6 +34,7 @@ type Config struct {
 		burst            float64
 		janitor_interval time.Duration
 		client_expiry    time.Duration
+		trustedProxies   []string
 	}
 }
 
