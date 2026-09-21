@@ -201,8 +201,6 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 			return err
 		}
 
-		defer rows.Close()
-
 		accounts := make(map[int64]*Account)
 		for rows.Next() {
 			var acc Account
@@ -219,6 +217,8 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 		if err := rows.Err(); err != nil {
 			return err
 		}
+
+		rows.Close()
 
 		accFrom, existFrom := accounts[from]
 		_, existTo := accounts[to]
