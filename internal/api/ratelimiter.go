@@ -3,6 +3,8 @@ package api
 import (
 	"net"
 	"net/http"
+	"net/netip"
+	"strings"
 	"sync"
 	"time"
 )
@@ -108,14 +110,45 @@ func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
 }
 
 func (app *Application) getRealIP(r *http.Request) string {
+	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
+
+	if err != nil {
+		remoteIP = r.RemoteAddr
+	}
+
+	if !app.isTrustedProxies(remoteIP) {
+		return remoteIP
+	}
+
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return xff
+		parts := strings.Split(xff, ",")
+		for i := len(parts) - 1; i >= 0; i-- {
+			ip := strings.TrimSpace(parts[i])
+			if parsed, ok := netip.ParseAddr(ip); ok == nil && !app.isTrustedProxies(parsed.String()) {
+				return parsed.String()
+			}
+		}
 	}
 
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
 		return xri
 	}
 
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return ip
+	return remoteIP
+}
+
+func (app *Application) isTrustedProxies(ip string) bool {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+
+	for _, cidr := range app.cfg.rl.trustedProxies {
+		prefix, err := netip.ParsePrefix(cidr)
+		if err == nil && prefix.Contains(addr) {
+			return true
+		}
+	}
+
+	return false
 }
