@@ -178,9 +178,12 @@ func (m *UserModel) Update(user *User) error {
 	defer cancel()
 
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
-	if err != nil {
+	var pgErr *pgconn.PgError
+
+	if errors.As(err, &pgErr) {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+		case pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "users_email_key":
 			return ErrDuplicateEmail
 		case errors.Is(err, sql.ErrNoRows):
 			return ErrEditConflict
