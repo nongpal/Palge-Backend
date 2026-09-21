@@ -181,15 +181,15 @@ func (m *UserModel) Update(user *User) error {
 	var pgErr *pgconn.PgError
 
 	if errors.As(err, &pgErr) {
-		switch {
-		case pgErr.Code == "23505" &&
-			pgErr.ConstraintName == "users_email_key":
+		if pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "users_email_key" {
 			return ErrDuplicateEmail
-		case errors.Is(err, sql.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
 		}
+		return err
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrEditConflict
 	}
 
 	return nil
