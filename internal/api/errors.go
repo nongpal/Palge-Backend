@@ -8,37 +8,61 @@ import (
 	"github.com/nongpal/Palge-Backend/internal/data"
 )
 
+type errorKind int
+
+const (
+	errorKindValidation errorKind = iota
+	errorKindNotFound
+	errorKindConflict
+	errorKindAuthentication
+	errorKindAuthorization
+	errorKindRateLimit
+	errorKindInternal
+)
+
 type HTTPError struct {
-	status   int
-	message  any
-	internal bool
+	status  int
+	message any
+	kind    errorKind
 }
 
 func classifyError(err error) HTTPError {
 	var status int
 	var message any
+	var kind errorKind
 
 	switch {
 	case errors.Is(err, data.ErrRecordNotFound):
 		status = http.StatusNotFound
 		message = "the requested resource could not be found"
+		kind = errorKindNotFound
+
 	case errors.Is(err, data.ErrDuplicateEmail):
 		status = http.StatusUnprocessableEntity
 		message = "a user with this email address already exists"
+		kind = errorKindValidation
+
 	case errors.Is(err, data.ErrEditConflict):
 		status = http.StatusConflict
 		message = "unable to update the record due to an edit conflict, please try again"
+		kind = errorKindConflict
+
 	case errors.Is(err, data.ErrInsufficientBalance):
 		status = http.StatusUnprocessableEntity
 		message = "insufficient account balance"
+		kind = errorKindValidation
+
 	default:
 		status = http.StatusInternalServerError
 		message = "the server encountered a problem and could not process your request"
+		kind = errorKindInternal
+
 	}
 
 	return HTTPError{
 		status:  status,
 		message: message,
+		kind:    kind,
 	}
 }
 
