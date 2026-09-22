@@ -9,8 +9,9 @@ import (
 )
 
 type HTTPError struct {
-	status  int
-	message any
+	status   int
+	message  any
+	internal bool
 }
 
 func classifyError(err error) HTTPError {
