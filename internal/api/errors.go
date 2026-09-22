@@ -1,9 +1,45 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/nongpal/Palge-Backend/internal/data"
 )
+
+type HTTPError struct {
+	status  int
+	message any
+}
+
+func classifyError(err error) HTTPError {
+	var status int
+	var message any
+
+	switch {
+	case errors.Is(err, data.ErrRecordNotFound):
+		status = http.StatusNotFound
+		message = "the requested resource could not be found"
+	case errors.Is(err, data.ErrDuplicateEmail):
+		status = http.StatusUnprocessableEntity
+		message = "a user with this email address already exists"
+	case errors.Is(err, data.ErrEditConflict):
+		status = http.StatusConflict
+		message = "unable to update the record due to an edit conflict, please try again"
+	case errors.Is(err, data.ErrInsufficientBalance):
+		status = http.StatusUnprocessableEntity
+		message = "insufficient account balance"
+	default:
+		status = http.StatusInternalServerError
+		message = "the server encountered a problem and could not process your request"
+	}
+
+	return HTTPError{
+		status:  status,
+		message: message,
+	}
+}
 
 func (app *Application) logError(r *http.Request, err error) {
 	var (
