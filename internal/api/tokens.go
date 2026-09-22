@@ -33,7 +33,7 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
+		case errors.Is(err, data.ErrRecordNotFound):
 			app.recordAuditLog(r, &data.AuditLog{
 				UserID:     nil,
 				Action:     "login",

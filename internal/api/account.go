@@ -76,7 +76,7 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 	account, err := app.models.Accounts.Get(r.Context(), id)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
+		case errors.Is(err, data.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -133,7 +133,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		})
 
 		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
+		case errors.Is(err, data.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -197,7 +197,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 		})
 
 		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
+		case errors.Is(err, data.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		case errors.Is(err, data.ErrInsufficientBalance):
 			app.badRequestResponse(w, r, err)
@@ -258,7 +258,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 		})
 
 		switch {
-		case errors.Is(err, data.ErrAccountNotFound):
+		case errors.Is(err, data.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		case errors.Is(err, data.ErrInsufficientBalance):
 			app.badRequestResponse(w, r, err)

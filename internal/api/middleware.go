@@ -46,7 +46,7 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
 		if err != nil {
 			switch {
-			case errors.Is(err, data.ErrAccountNotFound):
+			case errors.Is(err, data.ErrRecordNotFound):
 				app.invalidCredentialResponse(w, r)
 			default:
 				app.serverErrorResponse(w, r, err)

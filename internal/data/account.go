@@ -59,7 +59,7 @@ func (m *AccountModel) Insert(ctx context.Context, account *Account) error {
 
 func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 	if id < 1 {
-		return nil, ErrAccountNotFound
+		return nil, ErrRecordNotFound
 	}
 	query := `
 		SELECT id, owner, balance
@@ -77,7 +77,7 @@ func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrAccountNotFound
+			return nil, ErrRecordNotFound
 		}
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (m *AccountModel) Deposit(ctx context.Context, id int64, amount int64) (*Ac
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrAccountNotFound
+			return nil, ErrRecordNotFound
 		}
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*A
 			if checkErr == nil && exists {
 				return nil, ErrInsufficientBalance
 			}
-			return nil, ErrAccountNotFound
+			return nil, ErrRecordNotFound
 		}
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 		_, existTo := accounts[to]
 
 		if !existFrom || !existTo {
-			return ErrAccountNotFound
+			return ErrRecordNotFound
 		}
 
 		if accFrom.Balance < amount {

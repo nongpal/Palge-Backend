@@ -3,8 +3,6 @@ package data
 import "errors"
 
 var (
-	ErrAccountNotFound = errors.New("account not found")
-
 	ErrInvalidAmount   = errors.New("amount must be greater than 0")
 	ErrNegativeBalance = errors.New("balance must not be negative")
 	ErrEmptyOwner      = errors.New("owner must be provided")
