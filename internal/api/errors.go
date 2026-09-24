@@ -39,7 +39,9 @@ func classifyError(err error) HTTPError {
 
 	case errors.Is(err, data.ErrDuplicateEmail):
 		status = http.StatusUnprocessableEntity
-		message = "a user with this email address already exists"
+		message = map[string]string{
+			"email": "a user with this email address already exists",
+		}
 		kind = errorKindValidation
 
 	case errors.Is(err, data.ErrEditConflict):
