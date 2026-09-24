@@ -66,6 +66,21 @@ func classifyError(err error) HTTPError {
 	}
 }
 
+func (app *Application) applicationErrorResponse(
+	w http.ResponseWriter,
+	r *http.Request,
+	err error,
+) {
+	herr := classifyError(err)
+
+	if herr.kind == errorKindInternal {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	app.errorResponse(w, r, herr.status, herr.message)
+}
+
 func (app *Application) logError(r *http.Request, err error) {
 	var (
 		method = r.Method
