@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
@@ -49,13 +48,8 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			ResourceID: nil,
 			Result:     "failed",
 		})
-		switch {
-		case errors.Is(err, data.ErrDuplicateEmail):
-			v.AddError("email", "a user with this email address already exists")
-			app.failedValidationResponse(w, r, v.Errors)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
+
+		app.applicationErrorResponse(w, r, err)
 		return
 	}
 
@@ -125,25 +119,14 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 			Result:     "failed",
 		})
 
-		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
-			v.AddError("token", "invalid or expired activation token")
-			app.failedValidationResponse(w, r, v.Errors)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
+		app.applicationErrorResponse(w, r, err)
 		return
 	}
 
 	user.Activated = true
 
 	if err := app.models.Users.Update(user); err != nil {
-		switch {
-		case errors.Is(err, data.ErrEditConflict):
-			app.editConflictResponse(w, r)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
+		app.applicationErrorResponse(w, r, err)
 		return
 	}
 
