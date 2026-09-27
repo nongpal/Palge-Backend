@@ -44,6 +44,13 @@ func classifyError(err error) HTTPError {
 		}
 		kind = errorKindValidation
 
+	case errors.Is(err, data.ErrInvalidActivationToken):
+		status = http.StatusUnprocessableEntity
+		message = map[string]string{
+			"token": "invalid or expired activation token",
+		}
+		kind = errorKindValidation
+
 	case errors.Is(err, data.ErrEditConflict):
 		status = http.StatusConflict
 		message = "unable to update the record due to an edit conflict, please try again"
@@ -51,7 +58,7 @@ func classifyError(err error) HTTPError {
 
 	case errors.Is(err, data.ErrInsufficientBalance):
 		status = http.StatusUnprocessableEntity
-		message = "insufficient account balance"
+		message = err.Error()
 		kind = errorKindValidation
 
 	default:
