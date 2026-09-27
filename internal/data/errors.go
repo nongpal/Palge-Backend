@@ -11,4 +11,6 @@ var (
 	ErrSameAccountTransfer = errors.New("sender and receiver must be different")
 	ErrSenderNotFound      = errors.New("sender account not found")
 	ErrReceiverNotFound    = errors.New("receiver account not found")
+
+	ErrInvalidActivationToken = errors.New("invalid or expired activation token")
 )
