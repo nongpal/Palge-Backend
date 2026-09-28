@@ -49,7 +49,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -119,14 +119,14 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
 	user.Activated = true
 
 	if err := app.models.Users.Update(user); err != nil {
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 

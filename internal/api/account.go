@@ -74,7 +74,7 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 
 	account, err := app.models.Accounts.Get(r.Context(), id)
 	if err != nil {
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -238,7 +238,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
