@@ -76,7 +76,7 @@ var catalog = map[apperr.Code]descriptor{
 
 	apperr.CodeInsufficientBalance: {
 		http.StatusUnprocessableEntity,
-		"invalid or expired activation token",
+		"the account has insufficient balance for this operation",
 	},
 
 	apperr.CodeSameAccountTransfer: {
@@ -92,6 +92,11 @@ var catalog = map[apperr.Code]descriptor{
 	apperr.CodeInvalidToken: {
 		http.StatusUnauthorized,
 		"invalid or expired token",
+	},
+
+	apperr.CodeInvalidRequest: {
+		http.StatusUnauthorized,
+		"invalid request",
 	},
 
 	apperr.CodeInvalidCredentials: {
@@ -117,6 +122,11 @@ var catalog = map[apperr.Code]descriptor{
 	apperr.CodeRateLimited: {
 		http.StatusTooManyRequests,
 		"rate limit exceeded",
+	},
+
+	apperr.CodeInternal: {
+		http.StatusInternalServerError,
+		"the server encountered a problem and could not process your request",
 	},
 }
 
