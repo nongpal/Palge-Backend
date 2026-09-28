@@ -9,6 +9,7 @@ const (
 	KindValidation Kind = iota
 	KindNotFound
 	KindConflict
+	KindMalformedRequest
 	KindAuthentication
 	KindAuthorization
 	KindRateLimit
@@ -38,7 +39,7 @@ var codeKind = map[Code]Kind{
 	CodeSameAccountTransfer: KindValidation,
 	CodeEditConflict:        KindConflict,
 	CodeInvalidToken:        KindAuthentication,
-	CodeInvalidRequest:      KindAuthentication,
+	CodeInvalidRequest:      KindMalformedRequest,
 	CodeInvalidCredentials:  KindAuthentication,
 	CodeUnauthenticated:     KindAuthentication,
 	CodeAccountInactive:     KindAuthorization,
