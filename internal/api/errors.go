@@ -69,6 +69,16 @@ var catalog = map[apperr.Code]descriptor{
 	},
 }
 
+var kindStatus = map[apperr.Kind]int{
+	apperr.KindValidation: http.StatusUnprocessableEntity,
+	apperr.KindNotFound: http.StatusNotFound,
+	apperr.KindConflict: http.StatusConflict,
+	apperr.KindAuthentication: http.StatusUnauthorized,
+	apperr.KindAuthorization: http.StatusForbidden,
+	apperr.KindRateLimit: http.StatusTooManyRequests,
+	apperr.KindInternal: http.StatusInternalServerError,
+}
+
 func (app *Application) logError(r *http.Request, err error) {
 	var (
 		method = r.Method
