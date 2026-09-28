@@ -29,6 +29,22 @@ const (
 	CodeInternal            Code = "internal"
 )
 
+var codeKind = map[Code]Kind{
+	CodeRecordNotFound: KindNotFound,
+	CodeDuplicateEmail: KindValidation,
+	CodeInsufficientBalance: KindValidation,
+	CodeSameAccountTransfer: KindValidation,
+	CodeEditConflict: KindConflict,
+	CodeInvalidToken: KindAuthentication,
+	CodeInvalidRequest: KindAuthentication,
+	CodeInvalidCredentials: KindAuthentication,
+	CodeUnauthenticated: KindAuthentication,
+	CodeAccountInactive: KindAuthorization,
+	CodePermissionDenied: KindAuthorization,
+	CodeRateLimited: KindRateLimit,
+	CodeInternal: KindInternal,
+}
+
 type Error struct {
 	code   Code
 	kind   Kind
