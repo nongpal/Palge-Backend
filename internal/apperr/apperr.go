@@ -90,5 +90,8 @@ func (e *Error) Unwrap() error {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s: %v", e.code, e.cause)
+	if e.cause != nil {
+		return fmt.Sprintf("%s: %v", e.code, e.cause)
+	}
+	return string(e.code)
 }
