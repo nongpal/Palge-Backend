@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -13,10 +14,53 @@ type descriptor struct {
 }
 
 type errorBody struct {
-	Code apperr.Code `json:"code"`
-	Message string `json:"message"`
-	Fields map[string]string `json:"fields,omitempty"`
-	RequestID string `json:"request_id,omitempty"`
+	Code      apperr.Code       `json:"code"`
+	Message   string            `json:"message"`
+	Fields    map[string]string `json:"fields,omitempty"`
+	RequestID string            `json:"request_id,omitempty"`
+}
+
+func (app *Application) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	aerr := &apperr.Error{}
+	if !errors.As(err, &aerr) {
+		aerr = apperr.New(apperr.CodeInternal)
+	}
+
+	d, ok := catalog[aerr.Code()]
+	if !ok {
+		app.logger.ErrorContext(r.Context(), "unmapped error code",
+			"code", aerr.Code(), "request_id", app.contextGetRequestID(r.Context()))
+		aerr = apperr.New(apperr.CodeInternal)
+		d = catalog[apperr.CodeInternal]
+	}
+
+	requestID := app.contextGetRequestID(r.Context())
+	if aerr.Kind() == apperr.KindInternal {
+		app.logger.ErrorContext(r.Context(), "request failed",
+			"error", err, "code", aerr.Code(),
+			"request_id", requestID,
+		)
+	}
+
+	status := kindStatus[aerr.Kind()]
+	if aerr.Kind() == apperr.KindAuthentication {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+	}
+
+	if status == 0 {
+		status = http.StatusInternalServerError
+	}
+
+	body := errorBody{
+		Code:      aerr.Code(),
+		Message:   d.message,
+		Fields:    aerr.Fields(),
+		RequestID: requestID,
+	}
+
+	if werr := app.writeJSON(w, status, envelope{"error": body}, nil); werr != nil {
+		app.logger.ErrorContext(r.Context(), "failed to write error response", "error", werr, "request_id", requestID)
+	}
 }
 
 var catalog = map[apperr.Code]descriptor{
@@ -77,13 +121,13 @@ var catalog = map[apperr.Code]descriptor{
 }
 
 var kindStatus = map[apperr.Kind]int{
-	apperr.KindValidation: http.StatusUnprocessableEntity,
-	apperr.KindNotFound: http.StatusNotFound,
-	apperr.KindConflict: http.StatusConflict,
+	apperr.KindValidation:     http.StatusUnprocessableEntity,
+	apperr.KindNotFound:       http.StatusNotFound,
+	apperr.KindConflict:       http.StatusConflict,
 	apperr.KindAuthentication: http.StatusUnauthorized,
-	apperr.KindAuthorization: http.StatusForbidden,
-	apperr.KindRateLimit: http.StatusTooManyRequests,
-	apperr.KindInternal: http.StatusInternalServerError,
+	apperr.KindAuthorization:  http.StatusForbidden,
+	apperr.KindRateLimit:      http.StatusTooManyRequests,
+	apperr.KindInternal:       http.StatusInternalServerError,
 }
 
 func (app *Application) logError(r *http.Request, err error) {
