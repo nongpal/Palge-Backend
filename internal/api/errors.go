@@ -1,93 +1,72 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/nongpal/Palge-Backend/internal/data"
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 )
 
-type errorKind int
-
-const (
-	errorKindValidation errorKind = iota
-	errorKindNotFound
-	errorKindConflict
-	errorKindAuthentication
-	errorKindAuthorization
-	errorKindRateLimit
-	errorKindInternal
-)
-
-type HTTPError struct {
+type descriptor struct {
 	status  int
-	message any
-	kind    errorKind
+	message string
 }
 
-func classifyError(err error) HTTPError {
-	var status int
-	var message any
-	var kind errorKind
+var catalog = map[apperr.Code]descriptor{
+	apperr.CodeRecordNotFound: {
+		http.StatusNotFound,
+		"the requested resource could not be found",
+	},
 
-	switch {
-	case errors.Is(err, data.ErrRecordNotFound):
-		status = http.StatusNotFound
-		message = "the requested resource could not be found"
-		kind = errorKindNotFound
+	apperr.CodeDuplicateEmail: {
+		http.StatusUnprocessableEntity,
+		"a user with this email address already exists",
+	},
 
-	case errors.Is(err, data.ErrDuplicateEmail):
-		status = http.StatusUnprocessableEntity
-		message = map[string]string{
-			"email": "a user with this email address already exists",
-		}
-		kind = errorKindValidation
+	apperr.CodeInsufficientBalance: {
+		http.StatusUnprocessableEntity,
+		"invalid or expired activation token",
+	},
 
-	case errors.Is(err, data.ErrInvalidActivationToken):
-		status = http.StatusUnprocessableEntity
-		message = map[string]string{
-			"token": "invalid or expired activation token",
-		}
-		kind = errorKindValidation
+	apperr.CodeSameAccountTransfer: {
+		http.StatusUnprocessableEntity,
+		"sender and receiver must be different accounts",
+	},
 
-	case errors.Is(err, data.ErrEditConflict):
-		status = http.StatusConflict
-		message = "unable to update the record due to an edit conflict, please try again"
-		kind = errorKindConflict
+	apperr.CodeEditConflict: {
+		http.StatusConflict,
+		"unable to update the record due to an edit conflict",
+	},
 
-	case errors.Is(err, data.ErrInsufficientBalance):
-		status = http.StatusUnprocessableEntity
-		message = err.Error()
-		kind = errorKindValidation
+	apperr.CodeInvalidToken: {
+		http.StatusUnauthorized,
+		"invalid or expired token",
+	},
 
-	default:
-		status = http.StatusInternalServerError
-		message = "the server encountered a problem and could not process your request"
-		kind = errorKindInternal
+	apperr.CodeInvalidCredentials: {
+		http.StatusUnauthorized,
+		"invalid authentication credentials",
+	},
 
-	}
+	apperr.CodeUnauthenticated: {
+		http.StatusUnauthorized,
+		"you must be authenticated to access this resource",
+	},
 
-	return HTTPError{
-		status:  status,
-		message: message,
-		kind:    kind,
-	}
-}
+	apperr.CodeAccountInactive: {
+		http.StatusForbidden,
+		"your user account must be activated to access this resource",
+	},
 
-func (app *Application) applicationErrorResponse(
-	w http.ResponseWriter,
-	r *http.Request,
-	err error,
-) {
-	herr := classifyError(err)
+	apperr.CodePermissionDenied: {
+		http.StatusForbidden,
+		"your account does not have the necessary permissions to access this resource",
+	},
 
-	if herr.kind == errorKindInternal {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
-
-	app.errorResponse(w, r, herr.status, herr.message)
+	apperr.CodeRateLimited: {
+		http.StatusTooManyRequests,
+		"rate limit exceeded",
+	},
 }
 
 func (app *Application) logError(r *http.Request, err error) {
