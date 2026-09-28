@@ -1,6 +1,9 @@
 package apperr
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type Code string
 type Kind int
@@ -72,6 +75,14 @@ func Wrap(code Code, cause error) *Error {
 	e := New(code)
 	e.cause = cause
 	return e
+}
+
+func Is(err error, code Code) bool {
+	var aerr *Error
+	if errors.As(err, &aerr) {
+		return aerr.code == code
+	}
+	return false
 }
 
 func (e *Error) Code() Code {
