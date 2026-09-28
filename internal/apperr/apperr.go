@@ -35,3 +35,12 @@ type Error struct {
 	fields map[string]string
 	cause  error
 }
+
+func New(code Code) *Error
+func Field(code Code, field, msg string) *Error
+func Wrap(code Code, cause error) *Error
+func (e *Error) Code() Code
+func (e *Error) Kind() Kind
+func (e *Error) Fields() map[string]string
+func (e *Error) Unwrap() error
+func (e *Error) Error() string
