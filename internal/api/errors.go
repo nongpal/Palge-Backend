@@ -95,7 +95,7 @@ var catalog = map[apperr.Code]descriptor{
 	},
 
 	apperr.CodeInvalidRequest: {
-		http.StatusUnauthorized,
+		http.StatusBadRequest,
 		"invalid request",
 	},
 
@@ -131,13 +131,14 @@ var catalog = map[apperr.Code]descriptor{
 }
 
 var kindStatus = map[apperr.Kind]int{
-	apperr.KindValidation:     http.StatusUnprocessableEntity,
-	apperr.KindNotFound:       http.StatusNotFound,
-	apperr.KindConflict:       http.StatusConflict,
-	apperr.KindAuthentication: http.StatusUnauthorized,
-	apperr.KindAuthorization:  http.StatusForbidden,
-	apperr.KindRateLimit:      http.StatusTooManyRequests,
-	apperr.KindInternal:       http.StatusInternalServerError,
+	apperr.KindValidation:       http.StatusUnprocessableEntity,
+	apperr.KindNotFound:         http.StatusNotFound,
+	apperr.KindConflict:         http.StatusConflict,
+	apperr.KindMalformedRequest: http.StatusBadRequest,
+	apperr.KindAuthentication:   http.StatusUnauthorized,
+	apperr.KindAuthorization:    http.StatusForbidden,
+	apperr.KindRateLimit:        http.StatusTooManyRequests,
+	apperr.KindInternal:         http.StatusInternalServerError,
 }
 
 func (app *Application) logError(r *http.Request, err error) {
