@@ -1,10 +1,10 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -33,7 +33,7 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		case apperr.Is(err, apperr.CodeRecordNotFound):
 			app.recordAuditLog(r, &data.AuditLog{
 				UserID:     nil,
 				Action:     "login",

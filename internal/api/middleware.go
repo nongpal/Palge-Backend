@@ -2,12 +2,12 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -45,10 +45,9 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 
 		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrRecordNotFound):
+			if apperr.Is(err, apperr.CodeInvalidToken) {
 				app.invalidCredentialResponse(w, r)
-			default:
+			} else {
 				app.serverErrorResponse(w, r, err)
 			}
 			return
