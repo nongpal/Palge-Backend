@@ -12,6 +12,13 @@ type descriptor struct {
 	message string
 }
 
+type errorBody struct {
+	Code apperr.Code `json:"code"`
+	Message string `json:"message"`
+	Fields map[string]string `json:"fields,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
+}
+
 var catalog = map[apperr.Code]descriptor{
 	apperr.CodeRecordNotFound: {
 		http.StatusNotFound,
