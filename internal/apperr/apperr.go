@@ -1,5 +1,7 @@
 package apperr
 
+import "fmt"
+
 type Code string
 type Kind int
 
@@ -30,19 +32,19 @@ const (
 )
 
 var codeKind = map[Code]Kind{
-	CodeRecordNotFound: KindNotFound,
-	CodeDuplicateEmail: KindValidation,
+	CodeRecordNotFound:      KindNotFound,
+	CodeDuplicateEmail:      KindValidation,
 	CodeInsufficientBalance: KindValidation,
 	CodeSameAccountTransfer: KindValidation,
-	CodeEditConflict: KindConflict,
-	CodeInvalidToken: KindAuthentication,
-	CodeInvalidRequest: KindAuthentication,
-	CodeInvalidCredentials: KindAuthentication,
-	CodeUnauthenticated: KindAuthentication,
-	CodeAccountInactive: KindAuthorization,
-	CodePermissionDenied: KindAuthorization,
-	CodeRateLimited: KindRateLimit,
-	CodeInternal: KindInternal,
+	CodeEditConflict:        KindConflict,
+	CodeInvalidToken:        KindAuthentication,
+	CodeInvalidRequest:      KindAuthentication,
+	CodeInvalidCredentials:  KindAuthentication,
+	CodeUnauthenticated:     KindAuthentication,
+	CodeAccountInactive:     KindAuthorization,
+	CodePermissionDenied:    KindAuthorization,
+	CodeRateLimited:         KindRateLimit,
+	CodeInternal:            KindInternal,
 }
 
 type Error struct {
@@ -52,11 +54,41 @@ type Error struct {
 	cause  error
 }
 
-func New(code Code) *Error
-func Field(code Code, field, msg string) *Error
-func Wrap(code Code, cause error) *Error
-func (e *Error) Code() Code
-func (e *Error) Kind() Kind
-func (e *Error) Fields() map[string]string
-func (e *Error) Unwrap() error
-func (e *Error) Error() string
+func New(code Code) *Error {
+	return &Error{
+		code: code,
+		kind: codeKind[code],
+	}
+}
+
+func Field(code Code, field, msg string) *Error {
+	e := New(code)
+	e.fields = map[string]string{field: msg}
+	return e
+}
+
+func Wrap(code Code, cause error) *Error {
+	e := New(code)
+	e.cause = cause
+	return e
+}
+
+func (e *Error) Code() Code {
+	return e.code
+}
+
+func (e *Error) Kind() Kind {
+	return e.kind
+}
+
+func (e *Error) Fields() map[string]string {
+	return e.fields
+}
+
+func (e *Error) Unwrap() error {
+	return e.cause
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s: %v", e.code, e.cause)
+}
