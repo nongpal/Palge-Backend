@@ -77,6 +77,12 @@ func Wrap(code Code, cause error) *Error {
 	return e
 }
 
+func WithFields(code Code, fields map[string]string) *Error {
+	e := New(code)
+	e.fields = fields
+	return e
+}
+
 func Is(err error, code Code) bool {
 	var aerr *Error
 	if errors.As(err, &aerr) {
