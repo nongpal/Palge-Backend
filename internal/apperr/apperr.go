@@ -27,6 +27,7 @@ const (
 	CodeEditConflict        Code = "edit_conflict"
 	CodeInvalidToken        Code = "invalid_token"
 	CodeInvalidRequest      Code = "invalid_request"
+	CodeValidationFailed    Code = "validation_failed"
 	CodeInvalidCredentials  Code = "invalid_credentials"
 	CodeUnauthenticated     Code = "unauthenticated"
 	CodeAccountInactive     Code = "account_inactive"
@@ -43,6 +44,7 @@ var codeKind = map[Code]Kind{
 	CodeEditConflict:        KindConflict,
 	CodeInvalidToken:        KindAuthentication,
 	CodeInvalidRequest:      KindMalformedRequest,
+	CodeValidationFailed:    KindValidation,
 	CodeInvalidCredentials:  KindAuthentication,
 	CodeUnauthenticated:     KindAuthentication,
 	CodeAccountInactive:     KindAuthorization,
@@ -71,15 +73,15 @@ func Field(code Code, field, msg string) *Error {
 	return e
 }
 
-func Wrap(code Code, cause error) *Error {
-	e := New(code)
-	e.cause = cause
-	return e
-}
-
 func WithFields(code Code, fields map[string]string) *Error {
 	e := New(code)
 	e.fields = fields
+	return e
+}
+
+func Wrap(code Code, cause error) *Error {
+	e := New(code)
+	e.cause = cause
 	return e
 }
 
@@ -101,6 +103,13 @@ func (e *Error) Kind() Kind {
 
 func (e *Error) Fields() map[string]string {
 	return e.fields
+}
+
+func (e *Error) Detail() string {
+	if e.cause == nil {
+		return ""
+	}
+	return e.cause.Error()
 }
 
 func (e *Error) Unwrap() error {
