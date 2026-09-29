@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -17,7 +18,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -30,13 +31,13 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := user.Password.Set(input.Password); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
 	data.ValidateUser(v, user)
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
@@ -55,7 +56,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -81,7 +82,7 @@ func (app *Application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	if err := app.writeJSON(w, http.StatusAccepted, envelope{
 		"user": user,
 	}, nil); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
@@ -91,7 +92,7 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := app.readJSON(w, r, &input); err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -105,7 +106,7 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 			ResourceID: nil,
 			Result:     "failed",
 		})
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
@@ -138,12 +139,12 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		"accounts:withdraw",
 		"accounts:transfer",
 	); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
 	if err := app.models.Tokens.DeleteAllForUser(data.ScopeActivation, user.ID); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -156,6 +157,6 @@ func (app *Application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	})
 
 	if err := app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }

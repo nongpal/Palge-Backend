@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 )
 
 type ClientInfo struct {
@@ -100,7 +102,7 @@ func (app *Application) middlewareRateLimit(next http.Handler) http.Handler {
 		if app.cfg.rl.enabled {
 			ip := app.getRealIP(r)
 			if !app.rateLimiter.Allow(ip) {
-				app.rateLimitExceededResponse(w, r)
+				app.writeError(w, r, apperr.New(apperr.CodeRateLimited))
 				return
 			}
 		}

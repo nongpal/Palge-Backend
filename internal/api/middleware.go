@@ -30,7 +30,7 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 
 		headerParts := strings.Split(authorizationHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			app.invalidCredentialResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodeInvalidToken))
 			return
 		}
 
@@ -39,17 +39,13 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 		v := validator.New()
 
 		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
-			app.invalidCredentialResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodeInvalidToken))
 			return
 		}
 
 		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
 		if err != nil {
-			if apperr.Is(err, apperr.CodeInvalidToken) {
-				app.invalidCredentialResponse(w, r)
-			} else {
-				app.serverErrorResponse(w, r, err)
-			}
+			app.writeError(w, r, err)
 			return
 		}
 
@@ -63,7 +59,7 @@ func (app *Application) requiredAuthenticatedUser(next http.HandlerFunc) http.Ha
 		user := app.contextGetUser(r)
 
 		if user.IsAnonymous() {
-			app.authenticationRequiredResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodeUnauthenticated))
 			return
 		}
 
@@ -76,7 +72,7 @@ func (app *Application) requiredActivatedUser(next http.HandlerFunc) http.Handle
 		user := app.contextGetUser(r)
 
 		if !user.Activated {
-			app.inactiveAccountResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodeAccountInactive))
 			return
 		}
 
@@ -92,7 +88,7 @@ func (app *Application) requirePermission(code string, next http.HandlerFunc) ht
 
 		permission, err := app.models.Permissions.GetAllForUser(user.ID)
 		if err != nil {
-			app.serverErrorResponse(w, r, err)
+			app.writeError(w, r, err)
 			return
 		}
 
@@ -104,7 +100,7 @@ func (app *Application) requirePermission(code string, next http.HandlerFunc) ht
 				ResourceID: nil,
 				Result:     "failed",
 			})
-			app.notPermittedResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodePermissionDenied))
 			return
 		}
 
