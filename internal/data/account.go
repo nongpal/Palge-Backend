@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
 
@@ -59,7 +60,7 @@ func (m *AccountModel) Insert(ctx context.Context, account *Account) error {
 
 func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 	if id < 1 {
-		return nil, ErrRecordNotFound
+		return nil, apperr.New(apperr.CodeRecordNotFound)
 	}
 	query := `
 		SELECT id, owner, balance
@@ -77,7 +78,7 @@ func (m *AccountModel) Get(ctx context.Context, id int64) (*Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrRecordNotFound
+			return nil, apperr.New(apperr.CodeRecordNotFound)
 		}
 		return nil, err
 	}
@@ -140,7 +141,7 @@ func (m *AccountModel) Deposit(ctx context.Context, id int64, amount int64) (*Ac
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrRecordNotFound
+			return nil, apperr.New(apperr.CodeRecordNotFound)
 		}
 		return nil, err
 	}
@@ -168,9 +169,9 @@ func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*A
 			var exists bool
 			checkErr := m.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE id = $1)", id).Scan(&exists)
 			if checkErr == nil && exists {
-				return nil, ErrInsufficientBalance
+				return nil, apperr.New(apperr.CodeInsufficientBalance)
 			}
-			return nil, ErrRecordNotFound
+			return nil, apperr.New(apperr.CodeRecordNotFound)
 		}
 		return nil, err
 	}
@@ -180,7 +181,7 @@ func (m *AccountModel) Withdraw(ctx context.Context, id int64, amount int64) (*A
 
 func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*Account, *Account, error) {
 	if from == to {
-		return nil, nil, ErrSameAccountTransfer
+		return nil, nil, apperr.New(apperr.CodeSameAccountTransfer)
 	}
 	var sender, receiver Account
 	err := m.execInTx(ctx, func(tx *sql.Tx) error {
@@ -224,11 +225,11 @@ func (m *AccountModel) Transfer(ctx context.Context, from, to, amount int64) (*A
 		_, existTo := accounts[to]
 
 		if !existFrom || !existTo {
-			return ErrRecordNotFound
+			return apperr.New(apperr.CodeRecordNotFound)
 		}
 
 		if accFrom.Balance < amount {
-			return ErrInsufficientBalance
+			return apperr.New(apperr.CodeInsufficientBalance)
 		}
 
 		debitQuery := `

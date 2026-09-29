@@ -8,12 +8,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 	"golang.org/x/crypto/bcrypt"
-)
-
-var (
-	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
 var AnonymousUser = &User{}
@@ -114,7 +111,7 @@ func (m *UserModel) Insert(user *User) error {
 		switch {
 		case pgErr.Code == "23505" &&
 			pgErr.ConstraintName == "users_email_key":
-			return ErrDuplicateEmail
+			return apperr.Field(apperr.CodeDuplicateEmail, "email", "a user with this email address already exists")
 
 		default:
 			return err
@@ -149,7 +146,7 @@ func (m *UserModel) GetByEmail(email string) (*User, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
+			return nil, apperr.New(apperr.CodeRecordNotFound)
 		default:
 			return nil, err
 		}
@@ -183,13 +180,13 @@ func (m *UserModel) Update(user *User) error {
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" &&
 			pgErr.ConstraintName == "users_email_key" {
-			return ErrDuplicateEmail
+			return apperr.Field(apperr.CodeDuplicateEmail, "email", "a user with this email address already exists")
 		}
 		return err
 	}
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrEditConflict
+		return apperr.New(apperr.CodeEditConflict)
 	}
 
 	return nil
@@ -228,7 +225,7 @@ func (m *UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrInvalidActivationToken
+			return nil, apperr.New(apperr.CodeInvalidToken)
 		default:
 			return nil, err
 		}

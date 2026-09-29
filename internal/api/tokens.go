@@ -1,10 +1,10 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -16,7 +16,7 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 
 	if err := app.readJSON(w, r, &input); err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -26,14 +26,14 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	data.ValidatePasswordPlaintext(v, input.Password)
 
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		case apperr.Is(err, apperr.CodeRecordNotFound):
 			app.recordAuditLog(r, &data.AuditLog{
 				UserID:     nil,
 				Action:     "login",
@@ -42,16 +42,16 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 				Result:     "failed",
 			})
 
-			app.invalidAuthenticationTokenResponse(w, r)
+			app.writeError(w, r, apperr.New(apperr.CodeInvalidCredentials))
 		default:
-			app.serverErrorResponse(w, r, err)
+			app.writeError(w, r, err)
 		}
 		return
 	}
 
 	match, err := user.Password.Match(input.Password)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -64,13 +64,13 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 			Result:     "failed",
 		})
 
-		app.invalidCredentialResponse(w, r)
+		app.writeError(w, r, apperr.New(apperr.CodeInvalidCredentials))
 		return
 	}
 
 	token, err := app.models.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -84,6 +84,6 @@ func (app *Application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 
 	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication": token}, nil)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }

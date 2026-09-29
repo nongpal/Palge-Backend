@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/data"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
@@ -16,7 +17,7 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -30,12 +31,12 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	data.ValidateAccount(v, account)
 
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
 	if err = app.models.Accounts.Insert(r.Context(), account); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -45,14 +46,14 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	err = app.writeJSON(w, http.StatusCreated, envelope{"account": account}, headers)
 
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
 func (app *Application) listAccountHandler(w http.ResponseWriter, r *http.Request) {
 	accounts, err := app.models.Accounts.GetAll(r.Context())
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -61,26 +62,26 @@ func (app *Application) listAccountHandler(w http.ResponseWriter, r *http.Reques
 	}, nil)
 
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
 func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
 	account, err := app.models.Accounts.Get(r.Context(), id)
 	if err != nil {
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
@@ -91,13 +92,13 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
 	err = app.readJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -105,7 +106,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 	data.ValidateAmount(v, input.Amount)
 
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
@@ -126,7 +127,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -145,7 +146,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 		nil,
 	)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
@@ -156,19 +157,19 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
 	err = app.readJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
 	v := validator.New()
 	if data.ValidateAmount(v, input.Amount); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
@@ -184,7 +185,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -198,7 +199,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"account": account}, nil)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }
 
@@ -211,7 +212,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.writeError(w, r, apperr.Wrap(apperr.CodeInvalidRequest, err))
 		return
 	}
 
@@ -222,7 +223,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	v.Check(input.From != input.To, "to", "cannot transfer to the same account")
 
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		app.writeError(w, r, apperr.WithFields(apperr.CodeValidationFailed, v.Errors))
 		return
 	}
 
@@ -238,7 +239,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 			Result:     "failed",
 		})
 
-		app.applicationErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 		return
 	}
 
@@ -258,6 +259,6 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 	}, nil)
 
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.writeError(w, r, err)
 	}
 }

@@ -2,181 +2,154 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
-	"github.com/nongpal/Palge-Backend/internal/data"
+	"github.com/nongpal/Palge-Backend/internal/apperr"
 )
 
-type errorKind int
-
-const (
-	errorKindValidation errorKind = iota
-	errorKindNotFound
-	errorKindConflict
-	errorKindAuthentication
-	errorKindAuthorization
-	errorKindRateLimit
-	errorKindInternal
-)
-
-type HTTPError struct {
-	status  int
-	message any
-	kind    errorKind
+type descriptor struct {
+	message string
 }
 
-func classifyError(err error) HTTPError {
-	var status int
-	var message any
-	var kind errorKind
+type errorBody struct {
+	Code      apperr.Code       `json:"code"`
+	Message   string            `json:"message"`
+	Fields    map[string]string `json:"fields,omitempty"`
+	RequestID string            `json:"request_id,omitempty"`
+}
 
-	switch {
-	case errors.Is(err, data.ErrRecordNotFound):
-		status = http.StatusNotFound
-		message = "the requested resource could not be found"
-		kind = errorKindNotFound
+func (app *Application) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	aerr := &apperr.Error{}
+	if !errors.As(err, &aerr) {
+		aerr = apperr.New(apperr.CodeInternal)
+	}
 
-	case errors.Is(err, data.ErrDuplicateEmail):
-		status = http.StatusUnprocessableEntity
-		message = map[string]string{
-			"email": "a user with this email address already exists",
-		}
-		kind = errorKindValidation
+	d, ok := catalog[aerr.Code()]
+	if !ok {
+		app.logger.ErrorContext(r.Context(), "unmapped error code",
+			"code", aerr.Code(), "request_id", app.contextGetRequestID(r.Context()))
+		aerr = apperr.New(apperr.CodeInternal)
+		d = catalog[apperr.CodeInternal]
+	}
 
-	case errors.Is(err, data.ErrInvalidActivationToken):
-		status = http.StatusUnprocessableEntity
-		message = map[string]string{
-			"token": "invalid or expired activation token",
-		}
-		kind = errorKindValidation
+	requestID := app.contextGetRequestID(r.Context())
+	if aerr.Kind() == apperr.KindInternal {
+		app.logger.ErrorContext(r.Context(), "request failed",
+			"error", err, "code", aerr.Code(),
+			"request_id", requestID,
+		)
+	}
 
-	case errors.Is(err, data.ErrEditConflict):
-		status = http.StatusConflict
-		message = "unable to update the record due to an edit conflict, please try again"
-		kind = errorKindConflict
+	status := kindStatus[aerr.Kind()]
+	if aerr.Kind() == apperr.KindAuthentication {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+	}
 
-	case errors.Is(err, data.ErrInsufficientBalance):
-		status = http.StatusUnprocessableEntity
-		message = err.Error()
-		kind = errorKindValidation
-
-	default:
+	if status == 0 {
 		status = http.StatusInternalServerError
-		message = "the server encountered a problem and could not process your request"
-		kind = errorKindInternal
-
 	}
 
-	return HTTPError{
-		status:  status,
-		message: message,
-		kind:    kind,
-	}
-}
-
-func (app *Application) applicationErrorResponse(
-	w http.ResponseWriter,
-	r *http.Request,
-	err error,
-) {
-	herr := classifyError(err)
-
-	if herr.kind == errorKindInternal {
-		app.serverErrorResponse(w, r, err)
-		return
+	message := d.message
+	if aerr.Kind() != apperr.KindInternal {
+		if detail := aerr.Detail(); detail != "" {
+			message = detail
+		}
 	}
 
-	app.errorResponse(w, r, herr.status, herr.message)
-}
+	body := errorBody{
+		Code:      aerr.Code(),
+		Message:   message,
+		Fields:    aerr.Fields(),
+		RequestID: requestID,
+	}
 
-func (app *Application) logError(r *http.Request, err error) {
-	var (
-		method = r.Method
-		uri    = r.URL.RequestURI()
-	)
-
-	app.logger.Error(err.Error(), "method", method, "uri", uri)
-}
-
-func (app *Application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
-	envlp := envelope{"error": message}
-
-	err := app.writeJSON(w, status, envlp, nil)
-	if err != nil {
-		app.logError(r, err)
-		w.WriteHeader(500)
+	if werr := app.writeJSON(w, status, envelope{"error": body}, nil); werr != nil {
+		app.logger.ErrorContext(r.Context(), "failed to write error response", "error", werr, "request_id", requestID)
 	}
 }
 
-func (app *Application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.logError(r, err)
-
-	message := "the server encountered a problem and could not process your request"
-	envlp := envelope{"error": message, "request_id": app.contextGetRequestID(r.Context())}
-
-	err = app.writeJSON(w, http.StatusInternalServerError, envlp, nil)
-	if err != nil {
-		app.logError(r, err)
-		w.WriteHeader(500)
-	}
+var Codes = []apperr.Code{
+	apperr.CodeRecordNotFound,
+	apperr.CodeDuplicateEmail,
+	apperr.CodeInsufficientBalance,
+	apperr.CodeSameAccountTransfer,
+	apperr.CodeEditConflict,
+	apperr.CodeInvalidToken,
+	apperr.CodeInvalidRequest,
+	apperr.CodeValidationFailed,
+	apperr.CodeInvalidCredentials,
+	apperr.CodeUnauthenticated,
+	apperr.CodeAccountInactive,
+	apperr.CodePermissionDenied,
+	apperr.CodeRateLimited,
+	apperr.CodeInternal,
 }
 
-func (app *Application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
-	message := "the requested resource could not be found"
-	app.errorResponse(w, r, http.StatusNotFound, message)
+var catalog = map[apperr.Code]descriptor{
+	apperr.CodeRecordNotFound: {
+		message: "the requested resource could not be found",
+	},
+
+	apperr.CodeDuplicateEmail: {
+		message: "a user with this email address already exists",
+	},
+
+	apperr.CodeInsufficientBalance: {
+		message: "the account has insufficient balance for this operation",
+	},
+
+	apperr.CodeSameAccountTransfer: {
+		message: "sender and receiver must be different accounts",
+	},
+
+	apperr.CodeEditConflict: {
+		message: "unable to update the record due to an edit conflict, please try again",
+	},
+
+	apperr.CodeInvalidToken: {
+		message: "invalid or expired token",
+	},
+
+	apperr.CodeInvalidRequest: {
+		message: "invalid request",
+	},
+
+	apperr.CodeValidationFailed: {
+		message: "the request body contains invalid fields",
+	},
+
+	apperr.CodeInvalidCredentials: {
+		message: "invalid authentication credentials",
+	},
+
+	apperr.CodeUnauthenticated: {
+		message: "you must be authenticated to access this resource",
+	},
+
+	apperr.CodeAccountInactive: {
+		message: "your user account must be activated to access this resource",
+	},
+
+	apperr.CodePermissionDenied: {
+		message: "your account does not have the necessary permissions to access this resource",
+	},
+
+	apperr.CodeRateLimited: {
+		message: "rate limit exceeded",
+	},
+
+	apperr.CodeInternal: {
+		message: "the server encountered a problem and could not process your request",
+	},
 }
 
-func (app *Application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
-}
-
-func (app *Application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
-}
-
-func (app *Application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
-	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
-}
-
-func (app *Application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
-	message := "unable to update the record due to an edit conflict, please try again"
-	app.errorResponse(w, r, http.StatusConflict, message)
-}
-
-func (app *Application) invalidCredentialResponse(w http.ResponseWriter, r *http.Request) {
-	message := "invalid authentication credentials"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-
-func (app *Application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	message := "invalid or missing authentication token"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-
-func (app *Application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
-	message := "you must be authenticated to access this resource"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-func (app *Application) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account must be activated to access this resource"
-	app.errorResponse(w, r, http.StatusForbidden, message)
-}
-
-func (app *Application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
-	message := `your user account doesn't have the ncessary permissions to access this resource`
-	app.errorResponse(w, r, http.StatusForbidden, message)
-}
-
-func (app *Application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	envlp := envelope{
-		"error":      "rate limit exceeded",
-		"request_id": app.contextGetRequestID(r.Context()),
-	}
-	err := app.writeJSON(w, http.StatusTooManyRequests, envlp, nil)
-	if err != nil {
-		app.logError(r, err)
-	}
+var kindStatus = map[apperr.Kind]int{
+	apperr.KindValidation:       http.StatusUnprocessableEntity,
+	apperr.KindNotFound:         http.StatusNotFound,
+	apperr.KindConflict:         http.StatusConflict,
+	apperr.KindMalformedRequest: http.StatusBadRequest,
+	apperr.KindAuthentication:   http.StatusUnauthorized,
+	apperr.KindAuthorization:    http.StatusForbidden,
+	apperr.KindRateLimit:        http.StatusTooManyRequests,
+	apperr.KindInternal:         http.StatusInternalServerError,
 }
