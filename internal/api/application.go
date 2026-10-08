@@ -13,7 +13,7 @@ import (
 	"github.com/nongpal/Palge-Backend/internal/mailer"
 )
 
-const version = "0.1.0"
+const version = "0.5.0"
 
 type Config struct {
 	Port int
