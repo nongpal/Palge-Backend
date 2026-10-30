@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS audit_logs (
     id bigserial PRIMARY KEY,
-    user_id bigint REFERENCES users ON DELETE SET NULL,
+    user_id bigint REFERENCES users(id) ON DELETE SET NULL,
     action text NOT NULL,
     resource text NOT NULL,
     resource_id bigint,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx
     ON audit_logs (user_id);
 
-CREATE INDEX IF NOT EXISTS audit_logs_created_ad_idx
+CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx
     ON audit_logs (created_at);
 
 CREATE INDEX IF NOT EXISTS audit_logs_resource_idx
