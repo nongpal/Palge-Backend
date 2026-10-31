@@ -12,7 +12,7 @@ import (
 
 type Account struct {
 	ID      int64  `json:"id"`
-	UserID  int64  `json:"-"`
+	UserID  int64  `json:"user_id"`
 	Owner   string `json:"owner"`
 	Balance int64  `json:"balance"`
 }
@@ -51,27 +51,27 @@ func (m *Model) execInTx(ctx context.Context, fn func(tx *sql.Tx) error) (err er
 
 func (m *Model) Insert(ctx context.Context, account *Account) error {
 	query := `
-		INSERT INTO accounts (owner, balance)
-		VALUES ($1, $2)
-		RETURNING id
+	INSERT INTO accounts (user_id, owner, balance)
+	VALUES ($1, $2, $3)
+	RETURNING id, user_id, owner, balance
 	`
 
-	return m.DB.QueryRowContext(ctx, query, account.Owner, account.Balance).Scan(&account.ID)
+	return m.DB.QueryRowContext(ctx, query, account.UserID, account.Owner, account.Balance).Scan(&account.ID)
 }
 
-func (m *Model) Get(ctx context.Context, id int64) (*Account, error) {
+func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 	if id < 1 {
 		return nil, apperr.New(apperr.CodeRecordNotFound)
 	}
 	query := `
-		SELECT id, owner, balance
+		SELECT id, user_id, owner, balance
 		FROM accounts
-		WHERE id = $1
+		WHERE id = $1 AND user_id = $2
 	`
 
 	var account Account
 
-	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, id, user_id).Scan(
 		&account.ID,
 		&account.Owner,
 		&account.Balance,
@@ -128,18 +128,19 @@ func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
 	return accounts, nil
 }
 
-func (m *Model) Deposit(ctx context.Context, id int64, amount int64) (*Account, error) {
+func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Account, error) {
 	query := `
 	UPDATE accounts
 	SET balance = balance + $1
-	WHERE id = $2
-	RETURNING id, owner, balance
+	WHERE id = $2 AND user_id = $3
+	RETURNING id, user_id, owner, balance
 	`
 
 	account := &Account{}
 
-	err := m.DB.QueryRowContext(ctx, query, amount, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, amount, id, user_id).Scan(
 		&account.ID,
+		&account.UserID,
 		&account.Owner,
 		&account.Balance,
 	)
@@ -154,17 +155,18 @@ func (m *Model) Deposit(ctx context.Context, id int64, amount int64) (*Account, 
 	return account, nil
 }
 
-func (m *Model) Withdraw(ctx context.Context, id int64, amount int64) (*Account, error) {
+func (m *Model) Withdraw(ctx context.Context, id, user_id, amount int64) (*Account, error) {
 	query := `
 	UPDATE accounts
 	SET balance = balance - $1
 	WHERE id = $2 AND balance >= $1
-	RETURNING id, owner, balance
+	RETURNING id, user_id, owner, balance
 	`
 
 	var account Account
-	err := m.DB.QueryRowContext(ctx, query, amount, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, amount, id, user_id).Scan(
 		&account.ID,
+		&account.UserID,
 		&account.Owner,
 		&account.Balance,
 	)
@@ -184,7 +186,7 @@ func (m *Model) Withdraw(ctx context.Context, id int64, amount int64) (*Account,
 	return &account, nil
 }
 
-func (m *Model) Transfer(ctx context.Context, from, to, amount int64) (*Account, *Account, error) {
+func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*Account, *Account, error) {
 	if from == to {
 		return nil, nil, apperr.New(apperr.CodeSameAccountTransfer)
 	}
@@ -196,7 +198,7 @@ func (m *Model) Transfer(ctx context.Context, from, to, amount int64) (*Account,
 		}
 
 		queryLock := `
-		SELECT id, owner, balance
+		SELECT id, user_id, owner, balance
 		FROM accounts
 		WHERE id in ($1, $2)
 		ORDER BY id
@@ -221,6 +223,7 @@ func (m *Model) Transfer(ctx context.Context, from, to, amount int64) (*Account,
 			var acc Account
 			if err := rows.Scan(
 				&acc.ID,
+				&acc.UserID,
 				&acc.Owner,
 				&acc.Balance,
 			); err != nil {
@@ -242,6 +245,10 @@ func (m *Model) Transfer(ctx context.Context, from, to, amount int64) (*Account,
 
 		if !existFrom || !existTo {
 			return apperr.New(apperr.CodeRecordNotFound)
+		}
+
+		if accFrom.UserID != userID {
+			return apperr.New(apperr.CodePermissionDenied)
 		}
 
 		if accFrom.Balance < amount {
