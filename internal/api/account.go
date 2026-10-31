@@ -12,8 +12,7 @@ import (
 
 func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Owner          string `json:"owner"`
-		InitialBalance int64  `json:"initial_balance"`
+		InitialBalance int64 `json:"initial_balance"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -23,7 +22,6 @@ func (app *Application) createAccountHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	acc := &account.Account{
-		Owner:   input.Owner,
 		Balance: input.InitialBalance,
 		UserID:  app.contextGetUser(r).ID,
 	}
@@ -75,7 +73,8 @@ func (app *Application) showAccountHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	account, err := app.accounts.Get(r.Context(), id)
+	user := app.contextGetUser(r)
+	account, err := app.accounts.Get(r.Context(), id, user.ID)
 	if err != nil {
 		app.writeError(w, r, err)
 		return
@@ -117,6 +116,7 @@ func (app *Application) depositHandler(w http.ResponseWriter, r *http.Request) {
 	account, err := app.accounts.Deposit(
 		r.Context(),
 		id,
+		user.ID,
 		input.Amount,
 	)
 
@@ -177,7 +177,7 @@ func (app *Application) withdrawHandler(w http.ResponseWriter, r *http.Request) 
 
 	user := app.contextGetUser(r)
 
-	account, err := app.accounts.Withdraw(r.Context(), id, input.Amount)
+	account, err := app.accounts.Withdraw(r.Context(), id, user.ID, input.Amount)
 	if err != nil {
 		app.recordAuditLog(r, &audit.AuditLog{
 			UserID:     &user.ID,
@@ -231,7 +231,7 @@ func (app *Application) transferHandler(w http.ResponseWriter, r *http.Request) 
 
 	user := app.contextGetUser(r)
 
-	sender, receiver, err := app.accounts.Transfer(r.Context(), input.From, input.To, input.Amount)
+	sender, receiver, err := app.accounts.Transfer(r.Context(), user.ID, input.From, input.To, input.Amount)
 	if err != nil {
 		app.recordAuditLog(r, &audit.AuditLog{
 			UserID:     &user.ID,
