@@ -226,6 +226,27 @@ func TestGetByEmail(t *testing.T) {
 	}
 }
 
+func TestInsertNotNullViolations(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	model := Model{DB: db}
+
+	email := fmt.Sprintf("nongpaldup-%d@example.com", time.Now().UnixNano())
+
+	input := User{
+		Name:      "Nongpal Dummy",
+		Email:     email,
+		Activated: true,
+	}
+
+	if err := model.Insert(&input); !apperr.Is(err, apperr.CodeNotNullViolation) {
+		t.Fatalf(
+			"insert null password into user: got error %v, want %v",
+			err,
+			apperr.CodeNotNullViolation,
+		)
+	}
+}
+
 func TestMatchPassword(t *testing.T) {
 	tpw := "P455w0rd"
 	wpw := "wrongpw"

@@ -108,18 +108,23 @@ func (m *Model) Insert(user *User) error {
 	)
 
 	if err != nil {
-		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
-			pgErr.Code == "23505" &&
-			pgErr.ConstraintName == "users_email_key" {
-			return apperr.Field(apperr.CodeDuplicateEmail, "email", "a user with this email address already exists")
-		} else if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
-			pgErr.Code == "23502" {
-			return apperr.New(apperr.CodeNotNullViolation)
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+			switch {
+			case pgErr.Code == "23505" &&
+				pgErr.ConstraintName == "users_email_key":
+				return apperr.Field(
+					apperr.CodeDuplicateEmail,
+					"email",
+					"a user with this email address already exists",
+				)
+
+			case pgErr.Code == "23502":
+				return apperr.New(apperr.CodeNotNullViolation)
+			}
 		}
 
 		return err
 	}
-
 	return nil
 }
 
