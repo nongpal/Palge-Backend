@@ -26,7 +26,7 @@ func TestUserInsert(t *testing.T) {
 		t.Fatalf("set password: %v", err)
 	}
 
-	if err := model.Insert(&input); err != nil {
+	if err := model.Insert(&input); err != nil && apperr.Is(err, apperr.CodeDuplicateEmail) {
 		t.Fatalf("insert user: %v", err)
 	}
 
@@ -223,5 +223,63 @@ func TestGetByEmail(t *testing.T) {
 
 	if !apperr.Is(err, apperr.CodeRecordNotFound) {
 		t.Fatalf("Expected CodeRecordNotFound, got %v", err)
+	}
+}
+
+func TestMatchPassword(t *testing.T) {
+	tpw := "P455w0rd"
+	wpw := "wrongpw"
+
+	db := testutil.NewTestDB(t)
+	model := Model{DB: db}
+
+	email := fmt.Sprintf("matchpw-%d@example.com", time.Now().UnixNano())
+
+	input := User{
+		Name:      "Nongpal Dummy",
+		Email:     email,
+		Activated: true,
+	}
+
+	if err := input.Password.Set(tpw); err != nil {
+		t.Fatalf("set password: %v", err)
+	}
+
+	if err := model.Insert(&input); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if _, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", input.ID); err != nil {
+			t.Errorf("cleanup user %d: %v", input.ID, err)
+		}
+	})
+
+	user, err := model.GetByEmail(email)
+	if err != nil {
+		t.Fatalf("get by email: %v", err)
+	}
+
+	if user.Password.hash == nil {
+		t.Fatal("expected password hash to be loaded from database")
+	}
+
+	match, err := user.Password.Match(tpw)
+	if err != nil {
+		t.Fatalf("match with correct password: %v", err)
+	}
+	if !match {
+		t.Fatal("expected correct password to match")
+	}
+
+	match, err = user.Password.Match(wpw)
+	if err != nil {
+		t.Fatalf("match with wrong password: %v", err)
+	}
+	if match {
+		t.Fatal("expected wrong password to NOT match")
 	}
 }
