@@ -22,6 +22,7 @@ const (
 const (
 	CodeRecordNotFound      Code = "record_not_found"
 	CodeDuplicateEmail      Code = "duplicate_email"
+	CodeNotNullViolation    Code = "not_null_violation"
 	CodeInsufficientBalance Code = "insufficient_balance"
 	CodeSameAccountTransfer Code = "same_account_transfer"
 	CodeEditConflict        Code = "edit_conflict"
@@ -39,6 +40,7 @@ const (
 var codeKind = map[Code]Kind{
 	CodeRecordNotFound:      KindNotFound,
 	CodeDuplicateEmail:      KindValidation,
+	CodeNotNullViolation:    KindValidation,
 	CodeInsufficientBalance: KindValidation,
 	CodeSameAccountTransfer: KindValidation,
 	CodeEditConflict:        KindConflict,
