@@ -4,17 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
+	"time"
 
 	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/validator"
 )
 
 type Account struct {
-	ID      int64  `json:"id"`
-	UserID  int64  `json:"user_id"`
-	Owner   string `json:"owner"`
-	Balance int64  `json:"balance"`
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	Balance   int64     `json:"balance"`
+	Status    string    `json:"-"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	Version   int       `json:"-"`
 }
 
 type Model struct {
@@ -22,7 +25,7 @@ type Model struct {
 }
 
 func ValidateAccount(v *validator.Validator, account *Account) {
-	v.Check(strings.TrimSpace(account.Owner) != "", "owner", "must be provided")
+	//v.Check(strings.TrimSpace(account.Owner) != "", "owner", "must be provided")
 	v.Check(account.Balance >= 0, "balance", "must not be negative")
 }
 
@@ -51,12 +54,22 @@ func (m *Model) execInTx(ctx context.Context, fn func(tx *sql.Tx) error) (err er
 
 func (m *Model) Insert(ctx context.Context, account *Account) error {
 	query := `
-	INSERT INTO accounts (user_id, owner, balance)
-	VALUES ($1, $2, $3)
-	RETURNING id, user_id, owner, balance
+	INSERT INTO accounts (user_id, balance)
+	VALUES ($1, $2)
+	RETURNING id, user_id, balance, status, created_at, updated_at
 	`
 
-	return m.DB.QueryRowContext(ctx, query, account.UserID, account.Owner, account.Balance).Scan(&account.ID)
+	return m.DB.QueryRowContext(
+		ctx,
+		query,
+		account.UserID,
+		account.Balance,
+	).Scan(
+		&account.ID,
+		&account.Status,
+		&account.CreatedAt,
+		&account.UpdatedAt,
+	)
 }
 
 func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
@@ -73,7 +86,6 @@ func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 
 	err := m.DB.QueryRowContext(ctx, query, id, user_id).Scan(
 		&account.ID,
-		&account.Owner,
 		&account.Balance,
 	)
 
@@ -89,7 +101,7 @@ func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 
 func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
 	query := `
-	SELECT id, owner, balance
+	SELECT id, user_id, balance
 	FROM accounts
 	ORDER BY id ASC
 	`
@@ -111,7 +123,7 @@ func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
 		var account Account
 
 		err = rows.Scan(
-			&account.ID, &account.Owner, &account.Balance,
+			&account.ID, &account.UserID, &account.Balance,
 		)
 
 		if err != nil {
@@ -133,7 +145,7 @@ func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Accoun
 	UPDATE accounts
 	SET balance = balance + $1
 	WHERE id = $2 AND user_id = $3
-	RETURNING id, user_id, owner, balance
+	RETURNING id, user_id,  balance, updated_at
 	`
 
 	account := &Account{}
@@ -141,8 +153,8 @@ func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Accoun
 	err := m.DB.QueryRowContext(ctx, query, amount, id, user_id).Scan(
 		&account.ID,
 		&account.UserID,
-		&account.Owner,
 		&account.Balance,
+		&account.UpdatedAt,
 	)
 
 	if err != nil {
@@ -160,15 +172,15 @@ func (m *Model) Withdraw(ctx context.Context, id, user_id, amount int64) (*Accou
 	UPDATE accounts
 	SET balance = balance - $1
 	WHERE id = $2 AND balance >= $1
-	RETURNING id, user_id, owner, balance
+	RETURNING id, user_id, balance, updated_at
 	`
 
 	var account Account
 	err := m.DB.QueryRowContext(ctx, query, amount, id, user_id).Scan(
 		&account.ID,
 		&account.UserID,
-		&account.Owner,
 		&account.Balance,
+		&account.UpdatedAt,
 	)
 
 	if err != nil {
@@ -198,7 +210,7 @@ func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*
 		}
 
 		queryLock := `
-		SELECT id, user_id, owner, balance
+		SELECT id, user_id, balance
 		FROM accounts
 		WHERE id in ($1, $2)
 		ORDER BY id
@@ -224,7 +236,6 @@ func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*
 			if err := rows.Scan(
 				&acc.ID,
 				&acc.UserID,
-				&acc.Owner,
 				&acc.Balance,
 			); err != nil {
 				return err
@@ -259,18 +270,27 @@ func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*
 			UPDATE accounts
 			SET balance = balance - $1
 			WHERE id = $2
-			RETURNING id, owner, balance
+			RETURNING id, balance, updated_at
 		`
 		if err := tx.QueryRowContext(ctx, debitQuery, amount, from).Scan(
 			&sender.ID,
-			&sender.Owner,
 			&sender.Balance,
+			&sender.UpdatedAt,
 		); err != nil {
 			return err
 		}
 
-		creditQuery := `UPDATE accounts SET balance = balance + $1 WHERE id = $2 RETURNING id, owner, balance`
-		if err := tx.QueryRowContext(ctx, creditQuery, amount, to).Scan(&receiver.ID, &receiver.Owner, &receiver.Balance); err != nil {
+		creditQuery := `
+			UPDATE accounts
+			SET balance = balance + $1
+			WHERE id = $2
+			RETURNING id, balance, updated_at
+		`
+		if err := tx.QueryRowContext(ctx, creditQuery, amount, to).Scan(
+			&receiver.ID,
+			&receiver.Balance,
+			&receiver.UpdatedAt,
+		); err != nil {
 			return err
 		}
 
