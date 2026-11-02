@@ -1,4 +1,4 @@
-package user
+package user_test
 
 import (
 	"context"
@@ -8,15 +8,16 @@ import (
 
 	"github.com/nongpal/Palge-Backend/internal/apperr"
 	"github.com/nongpal/Palge-Backend/internal/testutil"
+	"github.com/nongpal/Palge-Backend/internal/user"
 )
 
 func TestUserInsert(t *testing.T) {
 	db := testutil.NewTestDB(t)
-	model := Model{DB: db}
+	model := user.Model{DB: db}
 
 	email := fmt.Sprintf("nongpaldummy-%d@example.com", time.Now().UnixNano())
 
-	input := User{
+	input := user.User{
 		Name:      "Nongpal Dummy",
 		Email:     email,
 		Activated: true,
@@ -26,7 +27,10 @@ func TestUserInsert(t *testing.T) {
 		t.Fatalf("set password: %v", err)
 	}
 
-	if err := model.Insert(&input); err != nil && apperr.Is(err, apperr.CodeDuplicateEmail) {
+	if err := model.Insert(&input); err != nil {
+		if apperr.Is(err, apperr.CodeDuplicateEmail) {
+			t.Fatalf("Unexpected email duplicate: %v", err)
+		}
 		t.Fatalf("insert user: %v", err)
 	}
 
@@ -59,7 +63,7 @@ func TestUserInsert(t *testing.T) {
 		t.Errorf("Version = %d, want 1", input.Version)
 	}
 
-	var got User
+	var got user.User
 
 	err := db.QueryRowContext(
 		context.Background(),
@@ -105,11 +109,11 @@ func TestUserInsert(t *testing.T) {
 
 func TestUserInsertDuplicateEmail(t *testing.T) {
 	db := testutil.NewTestDB(t)
-	model := Model{DB: db}
+	model := user.Model{DB: db}
 
 	email := fmt.Sprintf("nongpaldup-%d@example.com", time.Now().UnixNano())
 
-	first := User{
+	first := user.User{
 		Name:      "Nongpal Dummy",
 		Email:     email,
 		Activated: true,
@@ -136,7 +140,7 @@ func TestUserInsertDuplicateEmail(t *testing.T) {
 		}
 	})
 
-	second := User{
+	second := user.User{
 		Name:      "Nongpal Dummy 2",
 		Email:     email,
 		Activated: true,
@@ -158,11 +162,11 @@ func TestUserInsertDuplicateEmail(t *testing.T) {
 
 func TestGetByEmail(t *testing.T) {
 	db := testutil.NewTestDB(t)
-	model := Model{DB: db}
+	model := user.Model{DB: db}
 
 	email := fmt.Sprintf("nongpaldup-%d@example.com", time.Now().UnixNano())
 
-	input := User{
+	input := user.User{
 		Name:      "Nongpal Dummy",
 		Email:     email,
 		Activated: true,
@@ -189,36 +193,40 @@ func TestGetByEmail(t *testing.T) {
 		}
 	})
 
-	user, err := model.GetByEmail(email)
+	got, err := model.GetByEmail(email)
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if user == nil {
+	if got == nil {
 		t.Fatalf("Expected user, got nil")
 	}
 
-	if user.ID != input.ID {
-		t.Errorf("ID = %d, want %d", user.ID, input.ID)
+	if got.ID != input.ID {
+		t.Errorf("ID = %d, want %d", got.ID, input.ID)
 	}
 
-	if user.Email != input.Email {
-		t.Errorf("Email = %q, want %q", user.Email, input.Email)
+	if got.Email != input.Email {
+		t.Errorf("Email = %q, want %q", got.Email, input.Email)
 	}
 
-	if user.Password.hash == nil {
-		t.Errorf("Expected password hash to be persisted")
+	match, err := got.Password.Match("P455w0rd")
+	if err != nil {
+		t.Fatalf("match correct password: %v", err)
+	}
+	if !match {
+		t.Fatal("expected correct password to match")
 	}
 
-	user, err = model.GetByEmail("nonexistnongpal@email.com")
+	gotNotExist, err := model.GetByEmail("nonexistnongpal@email.com")
 
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
 	}
 
-	if user != nil {
-		t.Fatalf("Expected nil user on error, got %+v", user)
+	if gotNotExist != nil {
+		t.Fatalf("Expected nil user on error, got %+v", gotNotExist)
 	}
 
 	if !apperr.Is(err, apperr.CodeRecordNotFound) {
@@ -228,11 +236,11 @@ func TestGetByEmail(t *testing.T) {
 
 func TestInsertNotNullViolations(t *testing.T) {
 	db := testutil.NewTestDB(t)
-	model := Model{DB: db}
+	model := user.Model{DB: db}
 
 	email := fmt.Sprintf("nongpaldup-%d@example.com", time.Now().UnixNano())
 
-	input := User{
+	input := user.User{
 		Name:      "Nongpal Dummy",
 		Email:     email,
 		Activated: true,
@@ -252,11 +260,11 @@ func TestMatchPassword(t *testing.T) {
 	wpw := "wrongpw"
 
 	db := testutil.NewTestDB(t)
-	model := Model{DB: db}
+	model := user.Model{DB: db}
 
 	email := fmt.Sprintf("matchpw-%d@example.com", time.Now().UnixNano())
 
-	input := User{
+	input := user.User{
 		Name:      "Nongpal Dummy",
 		Email:     email,
 		Activated: true,
@@ -279,16 +287,12 @@ func TestMatchPassword(t *testing.T) {
 		}
 	})
 
-	user, err := model.GetByEmail(email)
+	got, err := model.GetByEmail(email)
 	if err != nil {
 		t.Fatalf("get by email: %v", err)
 	}
 
-	if user.Password.hash == nil {
-		t.Fatal("expected password hash to be loaded from database")
-	}
-
-	match, err := user.Password.Match(tpw)
+	match, err := got.Password.Match(tpw)
 	if err != nil {
 		t.Fatalf("match with correct password: %v", err)
 	}
@@ -296,11 +300,11 @@ func TestMatchPassword(t *testing.T) {
 		t.Fatal("expected correct password to match")
 	}
 
-	match, err = user.Password.Match(wpw)
+	notMatch, err := got.Password.Match(wpw)
 	if err != nil {
 		t.Fatalf("match with wrong password: %v", err)
 	}
-	if match {
+	if notMatch {
 		t.Fatal("expected wrong password to NOT match")
 	}
 }
