@@ -65,9 +65,11 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Build
+        env:
+          DB_DSN: ${{ vars.DB_DSN }}
         run: go build -v ./...
 
       - name: Test
         env:
-          DB_DSN: postgres://postgres:postgres@localhost:5433/palge?sslmode=disable
+          TEST_DB_DSN: ${{ vars.TEST_DB_DSN }}
         run: go test -v ./...
