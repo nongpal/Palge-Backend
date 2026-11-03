@@ -73,7 +73,14 @@ jobs:
         run: |
           PGPASSWORD=postgres psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE palge_test;"
 
+      - name: Run Migrations
+        uses: golang-migrate/migrate@v4
+        with:
+          path: ./migrations
+          database: postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable
+          action: up
+
       - name: Test
         env:
-          TEST_DB_DSN: ${{ vars.TEST_DB_DSN }}
+          TEST_DB_DSN: postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable
         run: go test -v ./...
