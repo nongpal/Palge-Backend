@@ -64,6 +64,13 @@ jobs:
           go-version: "1.26.3"
           cache-dependency-path: go.sum
 
+      - name: Install golang-migrate CLI
+        run: |
+          curl -fsSL https://packagecloud.io/golang-migrate/migrate/gpgkey | sudo gpg --dearmor -o /etc/apt/keyrings/migrate.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/migrate.gpg] https://packagecloud.io/golang-migrate/migrate/ubuntu/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/migrate.list
+          apt-get update
+          apt-get install -y migrate
+
       - name: Build
         env:
           DB_DSN: ${{ vars.DB_DSN }}
@@ -74,9 +81,8 @@ jobs:
           PGPASSWORD=postgres psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE palge_test;"
 
       - name: Run Migrations
-        uses: docker://migrate/migrate:v4.18.2
-        with:
-          args: -path=./migrations -database="postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable" up
+        run: |
+          migrate -path=./migrations -database="postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable" up
 
 
       - name: Test
