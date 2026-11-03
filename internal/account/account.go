@@ -66,6 +66,8 @@ func (m *Model) Insert(ctx context.Context, account *Account) error {
 		account.Balance,
 	).Scan(
 		&account.ID,
+		&account.UserID,
+		&account.Balance,
 		&account.Status,
 		&account.CreatedAt,
 		&account.UpdatedAt,
@@ -73,19 +75,20 @@ func (m *Model) Insert(ctx context.Context, account *Account) error {
 }
 
 func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
-	if id < 1 {
+	if id <= 0 || user_id <= 0 {
 		return nil, apperr.New(apperr.CodeRecordNotFound)
 	}
 	query := `
-		SELECT id, user_id, owner, balance
+		SELECT id, user_id, balance
 		FROM accounts
 		WHERE id = $1 AND user_id = $2
 	`
 
-	var account Account
+	account := &Account{}
 
 	err := m.DB.QueryRowContext(ctx, query, id, user_id).Scan(
 		&account.ID,
+		&account.UserID,
 		&account.Balance,
 	)
 
@@ -96,7 +99,7 @@ func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 		return nil, err
 	}
 
-	return &account, nil
+	return account, nil
 }
 
 func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
