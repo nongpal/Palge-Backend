@@ -69,6 +69,10 @@ jobs:
           DB_DSN: ${{ vars.DB_DSN }}
         run: go build -v ./...
 
+      - name: Create Test Database
+        run: |
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE palge_test;"
+
       - name: Test
         env:
           TEST_DB_DSN: ${{ vars.TEST_DB_DSN }}
