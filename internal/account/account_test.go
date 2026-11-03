@@ -31,8 +31,6 @@ func TestAccountInsert(t *testing.T) {
 		t.Fatalf("Inser() err = %v", err)
 	}
 
-	t.Logf("inserted account: %+v", acc)
-
 	if acc.UserID != u.ID {
 		t.Errorf("Expected account belongs to user %d, got = %d", u.ID, acc.UserID)
 	}
