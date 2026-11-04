@@ -1,4 +1,3 @@
-
 name: CI
 
 on:
@@ -64,10 +63,25 @@ jobs:
           go-version: "1.26.3"
           cache-dependency-path: go.sum
 
+      - name: Install golang-migrate CLI
+        run: |
+          go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Build
+        env:
+          DB_DSN: ${{ vars.DB_DSN }}
         run: go build -v ./...
+
+      - name: Create Test Database
+        run: |
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE palge_test;"
+
+      - name: Run Migrations
+        run: |
+          migrate -path=./migrations -database="postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable" up
 
       - name: Test
         env:
-          DB_DSN: postgres://postgres:postgres@localhost:5433/palge?sslmode=disable
+          TEST_DB_DSN: postgres://postgres:postgres@127.0.0.1:5433/palge_test?sslmode=disable
         run: go test -v ./...
