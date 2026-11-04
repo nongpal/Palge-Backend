@@ -128,3 +128,150 @@ func TestAccountGet(t *testing.T) {
 		t.Errorf("Expected balance = %d, got = %d", blc, got.Balance)
 	}
 }
+
+func TestGetNegativeID(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	db := testutil.NewTestDB(t)
+	model := account.Model{DB: db}
+
+	u := testutil.CreateTestUser(t, db, "test insert")
+
+	var blc int64 = 1000000
+	acc := account.Account{
+		UserID:  u.ID,
+		Balance: blc,
+	}
+
+	err := model.Insert(ctx, &acc)
+
+	if err != nil {
+		t.Fatalf("Inser() err = %v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cleanupCancel()
+
+		_, err := db.ExecContext(
+			cleanupCtx,
+			"DELETE FROM accounts WHERE id = $1", acc.ID,
+		)
+
+		if err != nil {
+			t.Errorf("cleanup account %d: %v", acc.ID, err)
+		}
+	})
+
+	got, err := model.Get(ctx, -1, acc.UserID)
+
+	if got != nil {
+		t.Error("Expected nil because not found")
+	}
+
+	if !apperr.Is(err, apperr.CodeRecordNotFound) {
+		t.Errorf("Expected error = %v, got %v", apperr.CodeRecordNotFound, err)
+	}
+}
+
+func TestGetNegativeUserID(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	db := testutil.NewTestDB(t)
+	model := account.Model{DB: db}
+
+	u := testutil.CreateTestUser(t, db, "test insert")
+
+	var blc int64 = 1000000
+	acc := account.Account{
+		UserID:  u.ID,
+		Balance: blc,
+	}
+
+	err := model.Insert(ctx, &acc)
+
+	if err != nil {
+		t.Fatalf("Inser() err = %v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cleanupCancel()
+
+		_, err := db.ExecContext(
+			cleanupCtx,
+			"DELETE FROM accounts WHERE id = $1", acc.ID,
+		)
+
+		if err != nil {
+			t.Errorf("cleanup account %d: %v", acc.ID, err)
+		}
+	})
+
+	got, err := model.Get(ctx, acc.ID, -1)
+
+	if got != nil {
+		t.Error("Expected nil because not found")
+	}
+
+	if !apperr.Is(err, apperr.CodeRecordNotFound) {
+		t.Errorf("Expected error = %v, got %v", apperr.CodeRecordNotFound, err)
+	}
+}
+
+func TestGetInvalidID(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	db := testutil.NewTestDB(t)
+	model := account.Model{DB: db}
+
+	u := testutil.CreateTestUser(t, db, "test insert")
+
+	var blc int64 = 1000000
+	acc := account.Account{
+		UserID:  u.ID,
+		Balance: blc,
+	}
+
+	err := model.Insert(ctx, &acc)
+
+	if err != nil {
+		t.Fatalf("Inser() err = %v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cleanupCancel()
+
+		_, err := db.ExecContext(
+			cleanupCtx,
+			"DELETE FROM accounts WHERE id = $1", acc.ID,
+		)
+
+		if err != nil {
+			t.Errorf("cleanup account %d: %v", acc.ID, err)
+		}
+	})
+
+	got, err := model.Get(ctx, 2, acc.UserID)
+
+	if got != nil {
+		t.Error("Expected nil because not found")
+	}
+
+	if !apperr.Is(err, apperr.CodeRecordNotFound) {
+		t.Errorf("Expected error = %v, got %v", apperr.CodeRecordNotFound, err)
+	}
+}
