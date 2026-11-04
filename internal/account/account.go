@@ -56,7 +56,7 @@ func (m *Model) Insert(ctx context.Context, account *Account) error {
 	query := `
 	INSERT INTO accounts (user_id, balance)
 	VALUES ($1, $2)
-	RETURNING id, user_id, balance, status, created_at, updated_at
+	RETURNING id, user_id, balance, status, created_at, updated_at, version
 	`
 
 	return m.DB.QueryRowContext(
@@ -71,6 +71,7 @@ func (m *Model) Insert(ctx context.Context, account *Account) error {
 		&account.Status,
 		&account.CreatedAt,
 		&account.UpdatedAt,
+		&account.Version,
 	)
 }
 
@@ -79,7 +80,7 @@ func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 		return nil, apperr.New(apperr.CodeRecordNotFound)
 	}
 	query := `
-		SELECT id, user_id, balance
+		SELECT id, user_id, balance, status, created_at, updated_at, version
 		FROM accounts
 		WHERE id = $1 AND user_id = $2
 	`
@@ -90,6 +91,10 @@ func (m *Model) Get(ctx context.Context, id, user_id int64) (*Account, error) {
 		&account.ID,
 		&account.UserID,
 		&account.Balance,
+		&account.Status,
+		&account.CreatedAt,
+		&account.UpdatedAt,
+		&account.Version,
 	)
 
 	if err != nil {
@@ -146,9 +151,11 @@ func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
 func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Account, error) {
 	query := `
 	UPDATE accounts
-	SET balance = balance + $1
+	SET balance = balance + $1,
+		updated_at = NOW(),
+		version = version + 1
 	WHERE id = $2 AND user_id = $3
-	RETURNING id, user_id,  balance, updated_at
+	RETURNING id, user_id,  balance, updated_at, version
 	`
 
 	account := &Account{}
@@ -158,6 +165,7 @@ func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Accoun
 		&account.UserID,
 		&account.Balance,
 		&account.UpdatedAt,
+		&account.Version,
 	)
 
 	if err != nil {
