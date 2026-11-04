@@ -149,6 +149,12 @@ func (a *Model) GetAll(ctx context.Context) ([]*Account, error) {
 }
 
 func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Account, error) {
+	if amount <= 0 {
+		return nil, apperr.Field(
+			apperr.CodeValidationFailed,
+			"amount", "must be greater than 0",
+		)
+	}
 	query := `
 	UPDATE accounts
 	SET balance = balance + $1,
