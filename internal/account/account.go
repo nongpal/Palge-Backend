@@ -185,7 +185,7 @@ func (m *Model) Deposit(ctx context.Context, id, user_id, amount int64) (*Accoun
 	return account, nil
 }
 
-func (m *Model) Withdraw(ctx context.Context, id, user_id, amount int64) (*Account, error) {
+func (m *Model) Withdraw(ctx context.Context, id, userID, amount int64) (*Account, error) {
 	if amount <= 0 {
 		return nil, apperr.Field(
 			apperr.CodeValidationFailed,
@@ -203,23 +203,39 @@ func (m *Model) Withdraw(ctx context.Context, id, user_id, amount int64) (*Accou
 	`
 
 	var account Account
-	err := m.DB.QueryRowContext(ctx, query, amount, id, user_id).Scan(
-		&account.ID,
-		&account.UserID,
-		&account.Balance,
-		&account.UpdatedAt,
-		&account.Version,
-	)
+	err := m.execInTx(ctx, func(tx *sql.Tx) error {
+		var balance int64
+
+		err := tx.QueryRowContext(ctx, `
+			SELECT balance
+			FROM accounts
+			WHERE id = $1 AND user_id = $2
+			FOR UPDATE
+		`, id, userID).Scan(&balance)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return apperr.New(apperr.CodeRecordNotFound)
+			}
+
+			return err
+		}
+
+		if balance < amount {
+			return apperr.New(apperr.CodeInsufficientBalance)
+		}
+
+		return tx.QueryRowContext(ctx, query, amount, id, userID).Scan(
+			&account.ID,
+			&account.UserID,
+			&account.Balance,
+			&account.UpdatedAt,
+			&account.Version,
+		)
+
+	})
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			var exists bool
-			checkErr := m.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE id = $1)", id).Scan(&exists)
-			if checkErr == nil && exists {
-				return nil, apperr.New(apperr.CodeInsufficientBalance)
-			}
-			return nil, apperr.New(apperr.CodeRecordNotFound)
-		}
 		return nil, err
 	}
 
