@@ -243,6 +243,13 @@ func (m *Model) Withdraw(ctx context.Context, id, userID, amount int64) (*Accoun
 }
 
 func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*Account, *Account, error) {
+	if amount <= 0 {
+		return nil, nil, apperr.Field(
+			apperr.CodeValidationFailed,
+			"amount", "must be greater than 0",
+		)
+	}
+
 	if from == to {
 		return nil, nil, apperr.New(apperr.CodeSameAccountTransfer)
 	}
@@ -312,28 +319,37 @@ func (m *Model) Transfer(ctx context.Context, userID, from, to, amount int64) (*
 
 		debitQuery := `
 			UPDATE accounts
-			SET balance = balance - $1
+			SET balance = balance - $1,
+				updated_at = NOW(),
+				version = version + 1
 			WHERE id = $2
-			RETURNING id, balance, updated_at
+			RETURNING id,  user_id, balance, updated_at, version
 		`
 		if err := tx.QueryRowContext(ctx, debitQuery, amount, from).Scan(
 			&sender.ID,
+			&sender.UserID,
 			&sender.Balance,
 			&sender.UpdatedAt,
+			&sender.Version,
 		); err != nil {
 			return err
 		}
 
 		creditQuery := `
 			UPDATE accounts
-			SET balance = balance + $1
+			SET balance = balance + $1,
+				updated_at = NOW(),
+				version = version + 1
 			WHERE id = $2
-			RETURNING id, balance, updated_at
+			RETURNING id, user_id, balance, updated_at, version
+
 		`
 		if err := tx.QueryRowContext(ctx, creditQuery, amount, to).Scan(
 			&receiver.ID,
+			&receiver.UserID,
 			&receiver.Balance,
 			&receiver.UpdatedAt,
+			&receiver.Version,
 		); err != nil {
 			return err
 		}
