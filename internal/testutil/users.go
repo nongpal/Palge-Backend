@@ -3,45 +3,49 @@ package testutil
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/nongpal/Palge-Backend/internal/user"
 )
 
-func CreateTestUser(t testing.TB, db *sql.DB, name string) int64 {
+func CreateTestUser(t testing.TB, db *sql.DB, name string) *user.User {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	model := user.Model{DB: db}
 
-	email := name + "@example.com"
-	var userID int64
-	err := db.QueryRowContext(ctx,
-		`
-		INSERT INTO users (name, email, password_hash, activated)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id
-		`, name, email, []byte("password-hash"), true,
-	).Scan(&userID)
-	if err != nil {
-		t.Fatalf("create test user: %v", err)
+	u := &user.User{
+		Name:      name,
+		Email:     fmt.Sprintf("test-%s@example.com", uuid.NewString()),
+		Activated: true,
+	}
+
+	if err := u.Password.Set("P455w0rd"); err != nil {
+		t.Fatalf("set password: %v", err)
+	}
+
+	if err := model.Insert(u); err != nil {
+		t.Fatalf("insert user: %v", err)
 	}
 
 	t.Cleanup(func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(
+		ctx, cancel := context.WithTimeout(
 			context.Background(),
 			5*time.Second,
 		)
-		defer cleanupCancel()
+		defer cancel()
 
 		_, err := db.ExecContext(
-			cleanupCtx,
-			"DELETE FROM users WHERE id = $1", userID,
+			ctx,
+			"DELETE FROM users WHERE id = $1", u.ID,
 		)
 
 		if err != nil {
-			t.Fatalf("cleanup users %d: %v", userID, err)
+			t.Errorf("cleanup users %d: %v", u.ID, err)
 		}
 	})
 
-	return userID
+	return u
 }
