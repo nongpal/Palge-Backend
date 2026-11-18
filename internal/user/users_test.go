@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -10,6 +11,38 @@ import (
 	"github.com/nongpal/Palge-Backend/internal/testutil"
 	"github.com/nongpal/Palge-Backend/internal/user"
 )
+
+func newTestUserFixture(t *testing.T) (user.User, user.Model, *sql.DB) {
+	t.Helper()
+
+	db := testutil.NewTestDB(t)
+	model := user.Model{DB: db}
+
+	input := user.User{
+		Name:      "Nongpal Dummy",
+		Email:     fmt.Sprintf("nongpaldummy-%d@example.com", time.Now().UnixNano()),
+		Activated: true,
+	}
+
+	if err := input.Password.Set("P455w0rd"); err != nil {
+		t.Fatalf("set password: %v", err)
+	}
+
+	if err := model.Insert(&input); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if _, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", input.ID); err != nil {
+			t.Errorf("cleanup user %d: %v", input.ID, err)
+		}
+	})
+
+	return input, model, db
+}
 
 func TestUserInsert(t *testing.T) {
 	db := testutil.NewTestDB(t)
